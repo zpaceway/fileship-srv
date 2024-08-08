@@ -44,9 +44,14 @@ class NodeForm(forms.ModelForm):
 
         if file:
             instance.size = file.size
-            urls = connector.upload(file)
+            chunks, compressed = connector.upload(file)
             if not instance.name:
                 instance.name = file.name
-            instance.urls = json.dumps(urls)
+            instance.data = json.dumps(
+                {
+                    "chunks": chunks,
+                    "compressed": compressed,
+                }
+            )
 
         return instance

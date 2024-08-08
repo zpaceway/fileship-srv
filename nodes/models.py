@@ -12,22 +12,20 @@ class Node(models.Model):
     )
     name = models.CharField(max_length=256)
     size = models.BigIntegerField(default=0)
-    urls = models.TextField(blank=True, null=True)
+    data = models.TextField(blank=True, null=True)
 
     def representation(self):
         base_node = {
+            "id": self.id,
             "name": self.name,
             "size": self.size,
-            "urls": None,
             "children": None,
         }
 
-        if self.urls is not None:
-            base_node["urls"] = json.loads(self.urls)
+        if self.data is not None:
             del base_node["children"]
 
         else:
-            del base_node["urls"]
             base_node["children"] = [
                 child.representation() for child in self.children.all()
             ]

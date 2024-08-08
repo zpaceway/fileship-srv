@@ -8,7 +8,7 @@ class NodeAdmin(admin.ModelAdmin):
     form = NodeForm
     readonly_fields = [
         "size",
-        "urls",
+        "data",
     ]
 
 
