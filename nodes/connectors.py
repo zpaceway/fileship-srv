@@ -59,10 +59,13 @@ class TelegramConnector(AbstractConnector):
         else:
             raise Exception(f"Failed to get file path: {result['description']}")
 
+    def get_file_url(self, file_id: str):
+        return f"https://api.telegram.org/file/bot{self.TELEGRAM_BOT_TOKEN}/{self.get_file_path(file_id)}"
+
     def upload_chunk(self, file: InMemoryUploadedFile, filename):
         print(f"Uplaoding chunk {filename}")
         url = f"https://api.telegram.org/bot{self.TELEGRAM_BOT_TOKEN}/sendDocument"
-        files = {"document": (filename, file.read())}  # Reading the content as bytes
+        files = {"document": (filename, file.read())}
         data = {"chat_id": self.TELEGRAM_ADMIN_CHAT_ID}
 
         response = get_response_from_callback_or_retry_on_error(
@@ -74,7 +77,7 @@ class TelegramConnector(AbstractConnector):
 
         if result["ok"]:
             file_id = result["result"]["document"]["file_id"]
-            file_url = f"https://api.telegram.org/file/bot{self.TELEGRAM_BOT_TOKEN}/{self.get_file_path(file_id)}"
+            file_url = self.get_file_url(file_id)
             return file_url
         else:
             raise Exception(f"Failed to upload file: {result['description']}")
