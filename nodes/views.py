@@ -36,17 +36,17 @@ class NodesDownloadView(views.View):
 
         # Download the split files and save them locally
         local_files = []
-        master_zip_file = None
+        master_zip_file_name: str = None
         result_name = os.path.join(temp_dir, "result.zip")
         with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
             for url_obj in urls:
                 file_name = url_obj["name"]
                 if ".zip" == file_name[-4::]:
-                    master_zip_file = os.path.join(temp_dir, file_name)
+                    master_zip_file_name = file_name
                 file_url = url_obj["url"]
                 executor.submit(process_indexed_url, file_name, file_url)
 
-        rezip_command = f"zip -s0 '{master_zip_file}' --out '{result_name}'"
+        rezip_command = f"zip -s0 '{os.path.join(temp_dir, master_zip_file_name)}' --out '{result_name}'"
         unzip_command = f"unzip {result_name} -d {temp_dir}"
         os.system(rezip_command)
         os.system(unzip_command)
@@ -57,6 +57,8 @@ class NodesDownloadView(views.View):
         response = FileResponse(
             open(f"{temp_dir}/tmp/{result_file}", "rb"), as_attachment=True
         )
-        response["Content-Disposition"] = 'attachment; filename="extracted_file"'
+        response["Content-Disposition"] = (
+            f'attachment; filename="{master_zip_file_name.strip(".zip")}"'
+        )
 
         return response

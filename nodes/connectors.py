@@ -1,6 +1,7 @@
 import concurrent.futures
 import abc
 import os
+from typing import Dict, List, Literal, Union
 import requests
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.conf import settings
@@ -9,7 +10,9 @@ from django.conf import settings
 class AbstractConnector(abc.ABC):
 
     @abc.abstractmethod
-    def upload(self, file: InMemoryUploadedFile):
+    def upload(
+        self, file: InMemoryUploadedFile
+    ) -> List[Dict[Union[Literal["name"], Literal["url"]], str]]:
         raise NotImplementedError()
 
 
@@ -19,7 +22,9 @@ class TelegramConnector(AbstractConnector):
     MAX_CHUNK_SIZE_IN_MB = 10
     CHUNK_SIZE = 1024 * 1024 * MAX_CHUNK_SIZE_IN_MB
 
-    def upload(self, uploaded_file: InMemoryUploadedFile):
+    def upload(
+        self, uploaded_file: InMemoryUploadedFile
+    ) -> List[Dict[Union[Literal["name"], Literal["url"]], str]]:
         file_size = uploaded_file.size
 
         if file_size <= self.CHUNK_SIZE:
