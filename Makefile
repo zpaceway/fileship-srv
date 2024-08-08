@@ -9,3 +9,6 @@ migrate:
 
 install:
 	sudo apt install p7zip-full --install-suggests
+
+tunnel:
+	lt --subdomain fileship --port 9898
