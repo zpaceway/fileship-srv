@@ -14,6 +14,8 @@ class Node(models.Model):
     name = models.CharField(max_length=256)
     size = models.BigIntegerField(default=0)
     data = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def representation(self):
         base_node = {
@@ -22,8 +24,8 @@ class Node(models.Model):
             "size": self.size,
             "url": None,
             "children": None,
-            "createdAt": datetime.datetime.now().isoformat(),
-            "updatedAt": datetime.datetime.now().isoformat(),
+            "createdAt": self.created_at.isoformat(),
+            "updatedAt": self.updated_at.isoformat(),
         }
 
         if self.data is not None:
