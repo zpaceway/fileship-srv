@@ -1,4 +1,5 @@
-import json
+import os
+import datetime
 from django.db import models
 
 
@@ -19,13 +20,20 @@ class Node(models.Model):
             "id": self.id,
             "name": self.name,
             "size": self.size,
+            "url": None,
             "children": None,
+            "createdAt": datetime.datetime.now().isoformat(),
+            "updatedAt": datetime.datetime.now().isoformat(),
         }
 
         if self.data is not None:
+            base_node["url"] = os.path.join(
+                os.getenv("APP_URL"), "nodes", str(self.id), "download"
+            )
             del base_node["children"]
 
         else:
+            del base_node["url"]
             base_node["children"] = [
                 child.representation() for child in self.children.all()
             ]
