@@ -47,7 +47,6 @@ venv.bak/
 
 # Django stuff:
 *.migrations/
-migrations/
 node_modules/
 *.bak
 
