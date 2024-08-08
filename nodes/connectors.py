@@ -5,7 +5,7 @@ from typing import Dict, List, Literal, Union
 import requests
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.conf import settings
-from nodes.utils import get_response_from_callback_or_retry_on_error
+from core.utils import auto_retry
 import shlex
 import uuid
 from django.conf import settings
@@ -24,7 +24,7 @@ class AbstractConnector(abc.ABC):
 class TelegramConnector(AbstractConnector):
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     TELEGRAM_ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID")
-    MAX_CHUNK_SIZE_IN_MB = 15
+    MAX_CHUNK_SIZE_IN_MB = 19
     CHUNK_SIZE = 1024 * 1024 * MAX_CHUNK_SIZE_IN_MB
 
     def upload(
@@ -47,10 +47,14 @@ class TelegramConnector(AbstractConnector):
         url = f"https://api.telegram.org/bot{self.TELEGRAM_BOT_TOKEN}/getFile"
         params = {"file_id": file_id}
 
-        response = get_response_from_callback_or_retry_on_error(
-            lambda: requests.get(url, params=params)
-        )
-        result = response.json()
+        @auto_retry
+        def get_file_path_response():
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+
+            return response.json()
+
+        result = get_file_path_response()
 
         print(f"File path result for {file_id} is {result}")
 
@@ -68,10 +72,14 @@ class TelegramConnector(AbstractConnector):
         files = {"document": (filename, file.read())}
         data = {"chat_id": self.TELEGRAM_ADMIN_CHAT_ID}
 
-        response = get_response_from_callback_or_retry_on_error(
-            lambda: requests.post(url, files=files, data=data)
-        )
-        result = response.json()
+        @auto_retry
+        def get_send_document_response():
+            response = requests.get(url, files=files, data=data)
+            response.raise_for_status()
+
+            return response.json()
+
+        result = get_send_document_response()
 
         print(f"Chunk {filename} result {result}")
 

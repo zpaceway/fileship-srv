@@ -4,7 +4,6 @@ import os
 import uuid
 import concurrent.futures
 from django.conf import settings
-import zipfile
 from nodes.forms import NodeForm
 from nodes.models import Node
 from rest_framework import views
@@ -13,7 +12,8 @@ from django.http.response import JsonResponse, FileResponse
 from rest_framework_simplejwt.authentication import JWTAuthentication
 import shlex
 import shutil
-from nodes.utils import get_response_from_callback_or_retry_on_error
+from core.utils import auto_retry
+import mimetypes
 
 
 class NodesView(views.APIView):
@@ -70,54 +70,69 @@ class NodesDownloadView(views.APIView):
 
     serializer_class = None
 
-    def get(self, request, node_id: str):
+    def get(self, _, node_id: str):
         node = Node.objects.get(id=node_id)
         content = json.loads(node.data)
-        chunks = content["chunks"]
+        chunk_objects = content["chunks"]
         compressed = content["compressed"]
 
-        temp_dir = os.path.join(settings.BASE_DIR, f"tmp/{uuid.uuid4()}")
-        result_dir = os.path.join(temp_dir, "result")
-        os.makedirs(temp_dir, exist_ok=True)
-        os.makedirs(result_dir, exist_ok=True)
+        temp_dir_path = os.path.join(settings.BASE_DIR, "tmp", uuid.uuid4().__str__())
+        os.makedirs(temp_dir_path, exist_ok=True)
 
-        def process_indexed_url(file_name, url):
-            local_filename = os.path.join(temp_dir, file_name)
-            local_files.append(local_filename)
-            response = get_response_from_callback_or_retry_on_error(
-                lambda: requests.get(url)
-            )
-            print(f"Success {url}")
-            with open(local_filename, "wb") as f:
-                f.write(response.content)
+        def get_file_chunk(chunk_name, chunk_url):
+            @auto_retry
+            def get_request_url_response():
+                response = requests.get(chunk_url)
+                response.raise_for_status()
 
-        # Download the split files and save them locally
-        local_files = []
-        master_zip_file_name: str = None
+                return response.content
+
+            print(f"Downloading chunk {chunk_name} from {chunk_url}")
+            content = get_request_url_response()
+
+            chunk_path = os.path.join(temp_dir_path, chunk_name)
+            with open(chunk_path, "wb") as f:
+                print(f"Saving chunk {chunk_name} on {chunk_path}")
+                f.write(content)
+
+        master_chunk_name: str = None
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            for chunk in chunks:
-                file_name = chunk["name"]
-                if not compressed or "001" == file_name[-3::]:
-                    master_zip_file_name = file_name
-                file_url = chunk["url"]
-                executor.submit(process_indexed_url, file_name, file_url)
+            futures = []
+            for chunk_object in chunk_objects:
+                chunk_name = chunk_object["name"]
+                if not compressed or "001" == chunk_name[-3::]:
+                    master_chunk_name = chunk_name
+                chunk_url = chunk_object["url"]
+                futures.append(executor.submit(get_file_chunk, chunk_name, chunk_url))
 
-        part_files = list(map(lambda path: f"{temp_dir}/{path}", os.listdir(temp_dir)))
-        part_files.sort()
+            for future in futures:
+                future.result()
+
         if compressed:
-            zip_fullname = shlex.quote(f"{temp_dir}/{master_zip_file_name}")
-            unzip_command = f"7z x {zip_fullname} -o{result_dir}"
+            unzip_result_dir_path = os.path.join(temp_dir_path, "result")
+            master_zip_path = shlex.quote(
+                os.path.join(temp_dir_path, master_chunk_name)
+            )
+
+            os.makedirs(unzip_result_dir_path, exist_ok=True)
+
+            unzip_command = f"7z x {master_zip_path} -o{unzip_result_dir_path}"
             os.system(unzip_command)
-            result_file = os.listdir(result_dir)[0]
-            result_file = f"{result_dir}/{result_file}"
+
+            result_file_name = os.listdir(unzip_result_dir_path)[0]
+            result_file_path = os.path.join(unzip_result_dir_path, result_file_name)
 
         else:
-            result_file = f"{temp_dir}/{os.listdir(temp_dir)[0]}"
+            result_file_path = os.path.join(temp_dir_path, os.listdir(temp_dir_path)[0])
 
-        # Create a response containing the extracted file
-        response = FileResponse(open(result_file, "rb"), as_attachment=True)
-        response["Content-Disposition"] = f'attachment; filename="{node.name}"'
+        mime_type, _ = (
+            mimetypes.guess_type(result_file_path) or "application/octet-stream"
+        )
+        response = FileResponse(open(result_file_path, "rb"), as_attachment=True)
+        response["Content-Disposition"] = f'inline; filename="{node.name}"'
+        response["Content-Type"] = mime_type
 
-        shutil.rmtree(temp_dir)
+        shutil.rmtree(temp_dir_path)
 
         return response
