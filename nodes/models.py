@@ -29,9 +29,7 @@ class Node(models.Model):
         }
 
         if self.data is not None:
-            base_node["url"] = os.path.join(
-                os.getenv("APP_URL"), "nodes", str(self.id), "download"
-            )
+            base_node["url"] = os.path.join("nodes", str(self.id), "download")
             del base_node["children"]
 
         else:
@@ -43,14 +41,12 @@ class Node(models.Model):
         return base_node
 
     @staticmethod
-    def tree(base: str = ""):
-        path_chunks = [path_chunk for path_chunk in base.split("/") if path_chunk]
-        parent_node = None
-        for path_chunk in path_chunks:
-            parent_node = Node.objects.get(parent=parent_node, name=path_chunk)
-
+    def tree():
         return [
-            node.representation() for node in Node.objects.filter(parent=parent_node)
+            node.representation()
+            for node in Node.objects.filter(
+                parent=None,
+            )
         ]
 
     def __str__(self) -> str:

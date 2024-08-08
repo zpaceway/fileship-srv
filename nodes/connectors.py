@@ -24,7 +24,7 @@ class AbstractConnector(abc.ABC):
 class TelegramConnector(AbstractConnector):
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     TELEGRAM_ADMIN_CHAT_ID = os.getenv("TELEGRAM_ADMIN_CHAT_ID")
-    MAX_CHUNK_SIZE_IN_MB = 19
+    MAX_CHUNK_SIZE_IN_MB = 20
     CHUNK_SIZE = 1024 * 1024 * MAX_CHUNK_SIZE_IN_MB
 
     def upload(
@@ -91,7 +91,6 @@ class TelegramConnector(AbstractConnector):
             raise Exception(f"Failed to upload file: {result['description']}")
 
     def upload_large_file(self, uploaded_file: InMemoryUploadedFile):
-        # Split the file into chunks and compress
         file_name = uploaded_file.name
         file_urls = []
 
@@ -108,12 +107,9 @@ class TelegramConnector(AbstractConnector):
         def process_split_file(split_file_name: str):
             split_file_path = f"{temp_folder}/{split_file_name}"
             with open(split_file_path, "rb") as f:
-                file_url = self.upload_chunk(
-                    f, split_file_name
-                )  # Open and pass the file directly
+                file_url = self.upload_chunk(f, split_file_name)
                 file_urls.append({"url": file_url, "name": split_file_name})
 
-        # Upload each split file
         split_files = [f for f in os.listdir(temp_folder)]
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             for split_file_name in split_files:
@@ -130,4 +126,4 @@ class LocalConnector(AbstractConnector):
         with open(file_path, "wb") as f:
             f.write(file.read())
 
-        return [f"{os.getenv('APP_URL')}/media/{file.name}"], False
+        return [os.path.join("media", file.name)], False
