@@ -28,7 +28,7 @@ SECRET_KEY = "django-insecure-0f#q8f(2vz*pnc3n)-6vx0_)(s2+*!$t#u)y@i7^kro1-u+^g3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost:9898", "fileship.loca.lt"]
+ALLOWED_HOSTS = ["localhost", "fileship.loca.lt"]
 
 
 # Application definition
