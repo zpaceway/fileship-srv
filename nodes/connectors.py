@@ -84,7 +84,12 @@ class TelegramConnector(AbstractConnector):
         print(f"Chunk {filename} result {result}")
 
         if result["ok"]:
-            file_id = result["result"]["document"]["file_id"]
+            file_id = result["result"].get("document", {}).get("file_id")
+            file_id = file_id or result["result"].get("video", {}).get("file_id")
+            file_id = file_id or result["result"].get("audio", {}).get("file_id")
+            file_id = file_id or result["result"].get("image", {}).get("file_id")
+            file_id = file_id or result["result"].get("music", {}).get("file_id")
+
             file_url = self.get_file_url(file_id)
             return file_url
         else:
