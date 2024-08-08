@@ -5,5 +5,6 @@ from nodes.views import NodesView, NodesDownloadView
 
 urlpatterns = [
     path("", NodesView.as_view()),
+    path("<int:node_id>/", NodesView.as_view()),
     path("<int:node_id>/download", NodesDownloadView.as_view()),
 ]

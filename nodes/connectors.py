@@ -93,7 +93,7 @@ class TelegramConnector(AbstractConnector):
         file_result_name = shlex.quote(f"{temp_folder}/{file_name}.zip")
         file_input = shlex.quote(f"{uploaded_file.temporary_file_path()}")
         split_command = (
-            f"zip -s {self.MAX_CHUNK_SIZE_IN_MB}m {file_result_name} {file_input}"
+            f"7z a -v{self.MAX_CHUNK_SIZE_IN_MB}m -tzip {file_result_name} {file_input}"
         )
         os.system(split_command)
 
