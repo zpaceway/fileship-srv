@@ -30,8 +30,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     "localhost",
-    "fileship.loca.lt",
-    "shiptunnel.zpaceway.com",
+    ".shiptunnel.zpaceway.com",
 ]
 
 
