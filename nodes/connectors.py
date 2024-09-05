@@ -117,7 +117,7 @@ class TelegramConnector(AbstractConnector):
                 file_ids.append({"telegram_file_id": file_id, "name": split_file_name})
 
         split_files = [f for f in os.listdir(temp_folder)]
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             for split_file_name in split_files:
                 executor.submit(process_split_file, split_file_name)
 

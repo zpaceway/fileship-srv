@@ -105,7 +105,7 @@ class NodesDownloadView(views.APIView):
 
         master_chunk_name: str = None
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             futures = []
             for chunk_object in chunk_objects:
                 chunk_name = chunk_object["name"]
@@ -139,8 +139,11 @@ class NodesDownloadView(views.APIView):
         mime_type, _ = (
             mimetypes.guess_type(result_file_path) or "application/octet-stream"
         )
-        response = FileResponse(open(result_file_path, "rb"), as_attachment=True)
-        response["Content-Disposition"] = f'inline; filename="{node.name}"'
+        response = FileResponse(
+            open(result_file_path, "rb"),
+            as_attachment=True,
+            filename=node.name,
+        )
         response["Content-Type"] = mime_type
 
         shutil.rmtree(temp_dir_path)
