@@ -17,6 +17,52 @@ from core.utils import auto_retry
 import mimetypes
 
 
+def download_file_chunk(chunk_name, chunk_object, temp_dir_path):
+    chunk_url = chunk_object.get("url")
+    if not chunk_url and chunk_object.get("telegram_file_id"):
+        telegram_connector = TelegramConnector()
+        chunk_url = telegram_connector.get_file_url(chunk_object["telegram_file_id"])
+
+    @auto_retry
+    def get_request_url_response():
+        response = requests.get(chunk_url)
+        response.raise_for_status()
+
+        return response.content
+
+    print(f"Downloading chunk {chunk_name} from {chunk_url}")
+    content = get_request_url_response()
+
+    chunk_path = os.path.join(temp_dir_path, chunk_name)
+    with open(chunk_path, "wb") as f:
+        print(f"Saving chunk {chunk_name} on {chunk_path}")
+        f.write(content)
+
+
+browser_mime_types = [
+    "text/html",
+    "text/plain",
+    "text/css",
+    "text/javascript",
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+    "application/javascript",
+    "application/json",
+    "application/pdf",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/ogg",
+    "video/mp4",
+    "video/webm",
+    "video/ogg",
+    "application/xml",
+    "application/xhtml+xml",
+]
+
+
 class NodesView(views.APIView):
     permission_classes = (rest_framework.permissions.AllowAny,)
     authentication_classes = ()
@@ -76,36 +122,13 @@ class NodesDownloadView(views.APIView):
         content = json.loads(node.data)
         chunk_objects = content["chunks"]
         compressed = content["compressed"]
-        telegram_connector = TelegramConnector()
 
         temp_dir_path = os.path.join(settings.BASE_DIR, "tmp", uuid.uuid4().__str__())
         os.makedirs(temp_dir_path, exist_ok=True)
 
-        def get_file_chunk(chunk_name, chunk_object):
-            chunk_url = chunk_object.get("url")
-            if not chunk_url and chunk_object.get("telegram_file_id"):
-                chunk_url = telegram_connector.get_file_url(
-                    chunk_object["telegram_file_id"]
-                )
-
-            @auto_retry
-            def get_request_url_response():
-                response = requests.get(chunk_url)
-                response.raise_for_status()
-
-                return response.content
-
-            print(f"Downloading chunk {chunk_name} from {chunk_url}")
-            content = get_request_url_response()
-
-            chunk_path = os.path.join(temp_dir_path, chunk_name)
-            with open(chunk_path, "wb") as f:
-                print(f"Saving chunk {chunk_name} on {chunk_path}")
-                f.write(content)
-
         master_chunk_name: str = None
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=8) as executor:
             futures = []
             for chunk_object in chunk_objects:
                 chunk_name = chunk_object["name"]
@@ -113,7 +136,9 @@ class NodesDownloadView(views.APIView):
                     master_chunk_name = chunk_name
 
                 futures.append(
-                    executor.submit(get_file_chunk, chunk_name, chunk_object)
+                    executor.submit(
+                        download_file_chunk, chunk_name, chunk_object, temp_dir_path
+                    )
                 )
 
             for future in futures:
@@ -141,7 +166,7 @@ class NodesDownloadView(views.APIView):
         )
         response = FileResponse(
             open(result_file_path, "rb"),
-            as_attachment=True,
+            as_attachment=mime_type not in browser_mime_types,
             filename=node.name,
         )
         response["Content-Type"] = mime_type
