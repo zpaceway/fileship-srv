@@ -4,6 +4,7 @@ import os
 import uuid
 import concurrent.futures
 from django.conf import settings
+from nodes.connectors import TelegramConnector
 from nodes.forms import NodeForm
 from nodes.models import Node
 from rest_framework import views
@@ -75,11 +76,18 @@ class NodesDownloadView(views.APIView):
         content = json.loads(node.data)
         chunk_objects = content["chunks"]
         compressed = content["compressed"]
+        telegram_connector = TelegramConnector()
 
         temp_dir_path = os.path.join(settings.BASE_DIR, "tmp", uuid.uuid4().__str__())
         os.makedirs(temp_dir_path, exist_ok=True)
 
-        def get_file_chunk(chunk_name, chunk_url):
+        def get_file_chunk(chunk_name, chunk_object):
+            chunk_url = chunk_object.get("url")
+            if not chunk_url and chunk_object.get("telegram_file_id"):
+                chunk_url = telegram_connector.get_file_url(
+                    chunk_object["telegram_file_id"]
+                )
+
             @auto_retry
             def get_request_url_response():
                 response = requests.get(chunk_url)
@@ -103,8 +111,10 @@ class NodesDownloadView(views.APIView):
                 chunk_name = chunk_object["name"]
                 if not compressed or "001" == chunk_name[-3::]:
                     master_chunk_name = chunk_name
-                chunk_url = chunk_object["url"]
-                futures.append(executor.submit(get_file_chunk, chunk_name, chunk_url))
+
+                futures.append(
+                    executor.submit(get_file_chunk, chunk_name, chunk_object)
+                )
 
             for future in futures:
                 future.result()

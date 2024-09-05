@@ -35,7 +35,9 @@ class TelegramConnector(AbstractConnector):
         if file_size <= self.CHUNK_SIZE:
             return [
                 {
-                    "url": self.upload_chunk(uploaded_file, uploaded_file.name),
+                    "telegram_file_id": self.upload_chunk(
+                        uploaded_file, uploaded_file.name
+                    ),
                     "name": uploaded_file.name,
                 }
             ], False
@@ -90,14 +92,13 @@ class TelegramConnector(AbstractConnector):
             file_id = file_id or result["result"].get("image", {}).get("file_id")
             file_id = file_id or result["result"].get("music", {}).get("file_id")
 
-            file_url = self.get_file_url(file_id)
-            return file_url
+            return file_id
         else:
             raise Exception(f"Failed to upload file: {result['description']}")
 
     def upload_large_file(self, uploaded_file: InMemoryUploadedFile):
         file_name = uploaded_file.name
-        file_urls = []
+        file_ids = []
 
         temp_folder = f"{settings.BASE_DIR}/tmp/{uuid.uuid4()}"
 
@@ -112,8 +113,8 @@ class TelegramConnector(AbstractConnector):
         def process_split_file(split_file_name: str):
             split_file_path = f"{temp_folder}/{split_file_name}"
             with open(split_file_path, "rb") as f:
-                file_url = self.upload_chunk(f, split_file_name)
-                file_urls.append({"url": file_url, "name": split_file_name})
+                file_id = self.upload_chunk(f, split_file_name)
+                file_ids.append({"telegram_file_id": file_id, "name": split_file_name})
 
         split_files = [f for f in os.listdir(temp_folder)]
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
@@ -122,7 +123,7 @@ class TelegramConnector(AbstractConnector):
 
         shutil.rmtree(temp_folder)
 
-        return file_urls
+        return file_ids
 
 
 class LocalConnector(AbstractConnector):
