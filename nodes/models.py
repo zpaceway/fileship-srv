@@ -1,6 +1,7 @@
 import os
 import datetime
 from django.db import models
+from django.db.models.manager import BaseManager
 
 
 class Node(models.Model):
@@ -17,7 +18,8 @@ class Node(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def representation(self):
+    def representation(self, order_by=["name"]):
+        self.children: BaseManager[Node]
         base_node = {
             "id": self.id,
             "name": self.name,
@@ -34,19 +36,47 @@ class Node(models.Model):
 
         else:
             del base_node["url"]
+            files = [
+                child.representation(order_by)
+                for child in self.children.filter(
+                    data__isnull=False,
+                ).order_by(*order_by)
+            ]
+            folders = [
+                child.representation(order_by)
+                for child in self.children.filter(
+                    data__isnull=True,
+                ).order_by(*order_by)
+            ]
+
             base_node["children"] = [
-                child.representation() for child in self.children.all()
+                *folders,
+                *files,
             ]
 
         return base_node
 
     @staticmethod
-    def tree():
-        return [
-            node.representation()
+    def tree(order_by=["name"]):
+        files = [
+            node.representation(order_by)
             for node in Node.objects.filter(
                 parent=None,
-            )
+                data__isnull=False,
+            ).order_by(*order_by)
+        ]
+
+        folders = [
+            node.representation(order_by)
+            for node in Node.objects.filter(
+                parent=None,
+                data__isnull=True,
+            ).order_by(*order_by)
+        ]
+
+        return [
+            *folders,
+            *files,
         ]
 
     def __str__(self) -> str:
