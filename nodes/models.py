@@ -18,12 +18,23 @@ class Node(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def get_size(self):
+        self.children: BaseManager[Node]
+
+        if self.data is None:
+            return self.size
+
+        full_size = sum([child.get_size() for child in self.children.all()])
+
+        return full_size
+
     def representation(self, order_by=["name"]):
         self.children: BaseManager[Node]
+
         base_node = {
             "id": self.id,
             "name": self.name,
-            "size": self.size,
+            "size": self.get_size(),
             "url": None,
             "children": None,
             "createdAt": self.created_at.isoformat(),
