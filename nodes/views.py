@@ -113,7 +113,7 @@ class NodesView(views.APIView):
     def post(self, request: HttpRequest, *args):
         chunks: int = int(request.POST.get("chunks"))
         name = request.POST.get("name")
-        parent_id = request.POST.get("parent_id")
+        parent_id = request.POST.get("parent")
 
         node = None
         try:
