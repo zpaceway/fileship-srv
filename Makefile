@@ -6,7 +6,3 @@ migrations:
 
 migrate:
 	python manage.py migrate
-
-install:
-	sudo apt install p7zip-full --install-suggests
-

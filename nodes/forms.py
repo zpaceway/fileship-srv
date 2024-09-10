@@ -28,16 +28,13 @@ class NodeForm(forms.ModelForm):
         model = Node
         fields = [
             "id",
-            "parent",
             "name",
+            "parent",
             "size",
         ]
 
 
 class ChunkForm(forms.ModelForm):
-    id = forms.CharField(
-        initial=lambda: uuid.uuid4().hex[0:8],
-    )
     connector = forms.ChoiceField(
         choices=list(
             map(
@@ -55,14 +52,13 @@ class ChunkForm(forms.ModelForm):
     class Meta:
         model = Chunk
         fields = [
-            "id",
-            "node",
-            "index",
+            "connector",
             "file",
         ]
 
     def save(self, commit: bool):
         instance: Chunk = super().save(commit)
+
         file: InMemoryUploadedFile = self.cleaned_data["file"]
         connector_cls = AVAILABLE_CONNECTORS.get(
             self.cleaned_data["connector"], {}

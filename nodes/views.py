@@ -103,7 +103,7 @@ class NodesView(views.APIView):
         )
 
     def post(self, request: HttpRequest, *args):
-        chunks: int = request.POST.get("chunks")
+        chunks: int = int(request.POST.get("chunks"))
 
         node_form = NodeForm(data=request.POST, files=request.FILES)
 
@@ -111,9 +111,13 @@ class NodesView(views.APIView):
         instance.save()
 
         for index in range(chunks):
+            chunk_id = uuid.uuid4().hex[0:8]
             Chunk.objects.get_or_create(
                 index=index,
                 node=instance,
+                defaults={
+                    "id": chunk_id,
+                },
             )
 
         return JsonResponse(
