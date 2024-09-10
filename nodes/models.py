@@ -1,8 +1,14 @@
 import os
 import json
 from typing import List, Literal, Union
+from cachetools import TTLCache
 from django.db import models
 from django.db.models.manager import BaseManager
+
+
+MAX_CACHE_SIZE = 1024
+TTL = 6
+cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TTL)
 
 
 class Node(models.Model):
@@ -23,18 +29,46 @@ class Node(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def get_size(self):
+        cache_key = f"size__{self.id}"
+        if cache.get(cache_key):
+            return cache[cache_key]
+
         if self.chunks.count() > 0:
-            return self.size
+            cache[cache_key] = self.size
+            return cache[cache_key]
 
-        full_size = sum([child.get_size() for child in self.children.all()])
+        cache[cache_key] = sum(
+            [
+                child.get_size()
+                for child in self.children.all()
+                .select_related("parent")
+                .prefetch_related("children")
+                .prefetch_related("chunks")
+            ]
+        )
 
-        return full_size
+        return cache[cache_key]
 
     def uploaded(self):
-        if self.chunks.count() > 0:
-            return all(chunk.uploaded() for chunk in self.chunks.all())
+        cache_key = f"uploaded__{self.id}"
+        if cache.get(cache_key):
+            return cache[cache_key]
 
-        return all([child.uploaded() for child in self.children.all()])
+        if self.chunks.count() > 0:
+            cache[cache_key] = all(chunk.uploaded() for chunk in self.chunks.all())
+            return cache[cache_key]
+
+        cache[cache_key] = all(
+            [
+                child.uploaded()
+                for child in self.children.all()
+                .select_related("parent")
+                .prefetch_related("children")
+                .prefetch_related("chunks")
+            ]
+        )
+
+        return cache[cache_key]
 
     def representation(self, order_by=["name"]):
         self.children: BaseManager[Node]
@@ -42,7 +76,7 @@ class Node(models.Model):
         base_node = {
             "id": self.id,
             "name": self.name,
-            "fullname": self.get_fullname("id"),
+            # "fullname": self.get_fullname("id"), # performance issues
             "size": self.get_size(),
             "url": None,
             "children": None,
@@ -60,7 +94,11 @@ class Node(models.Model):
 
             base_node["children"] = [
                 child.representation(order_by)
-                for child in self.children.filter().order_by(*order_by)
+                for child in self.children.all()
+                .select_related("parent")
+                .prefetch_related("children")
+                .prefetch_related("chunks")
+                .order_by(*order_by)
             ]
 
         return base_node
@@ -71,10 +109,18 @@ class Node(models.Model):
             node.representation(order_by)
             for node in Node.objects.filter(
                 parent=None,
-            ).order_by(*order_by)
+            )
+            .select_related("parent")
+            .prefetch_related("children")
+            .prefetch_related("chunks")
+            .order_by(*order_by)
         ]
 
     def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
+        cache_key = f"fullname__{property}__{self.id}"
+        if cache.get(cache_key):
+            return cache[cache_key]
+
         path_chunks: List[str] = [self.name if property == "name" else self.id]
         parent_node: Node = self.parent
 
@@ -84,7 +130,9 @@ class Node(models.Model):
 
         path_chunks.reverse()
 
-        return f'/{"/".join(path_chunks)}'
+        cache[cache_key] = f'/{"/".join(path_chunks)}'
+
+        return cache[cache_key]
 
     def __str__(self) -> str:
         return self.get_fullname()
