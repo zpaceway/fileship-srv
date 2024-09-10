@@ -5,40 +5,17 @@ import os
 import uuid
 import concurrent.futures
 from django.conf import settings
+from django.http.request import HttpRequest
 from nodes.connectors import TelegramConnector
-from nodes.forms import NodeForm
-from nodes.models import Node
+from nodes.forms import ChunkForm, NodeForm
+from nodes.models import Chunk, Node
 from rest_framework import views
 import rest_framework.permissions
-from django.http.response import JsonResponse, FileResponse
-from rest_framework_simplejwt.authentication import JWTAuthentication
-import shlex
+from django.http.response import JsonResponse
 import shutil
 from core.utils import auto_retry
 import mimetypes
 from cachetools import TTLCache
-
-
-def download_file_chunk(chunk_name, chunk_object, temp_dir_path):
-    chunk_url = chunk_object.get("url")
-    if not chunk_url and chunk_object.get("telegram_file_id"):
-        telegram_connector = TelegramConnector()
-        chunk_url = telegram_connector.get_file_url(chunk_object["telegram_file_id"])
-
-    @auto_retry
-    def get_request_url_response():
-        response = requests.get(chunk_url)
-        response.raise_for_status()
-
-        return response.content
-
-    print(f"Downloading chunk {chunk_name} from {chunk_url}")
-    content = get_request_url_response()
-
-    chunk_path = os.path.join(temp_dir_path, chunk_name)
-    with open(chunk_path, "wb") as f:
-        print(f"Saving chunk {chunk_name} on {chunk_path}")
-        f.write(content)
 
 
 browser_mime_types = [
@@ -69,61 +46,42 @@ TTL = 6 * 60 * 60
 cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TTL)
 
 
+@auto_retry
+def get_url_data_content(url) -> bytes:
+    response = requests.get(url)
+    response.raise_for_status()
+
+    return response.content
+
+
 def get_file_data_from_node_id(node_id: str):
     if node_id in cache:
         return cache[node_id]
 
     node = Node.objects.get(id=node_id)
-    content = json.loads(node.data)
-    chunk_objects = content["chunks"]
-    compressed = content["compressed"]
 
     temp_dir_path = os.path.join(settings.BASE_DIR, "tmp", uuid.uuid4().__str__())
     os.makedirs(temp_dir_path, exist_ok=True)
 
-    master_chunk_name: str = None
+    telegram_connector = TelegramConnector()
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=16) as executor:
-        futures = []
-        for chunk_object in chunk_objects:
-            chunk_name = chunk_object["name"]
-            if not compressed or "001" == chunk_name[-3::]:
-                master_chunk_name = chunk_name
+    data_chunks = []
 
-            futures.append(
-                executor.submit(
-                    download_file_chunk, chunk_name, chunk_object, temp_dir_path
-                )
-            )
+    for chunk in node.chunks.all().order_by("index"):
+        telegram_file_id = json.loads(chunk.data)["telegram_file_id"]
+        url = telegram_connector.get_file_url(telegram_file_id)
+        chunk_data = get_url_data_content(url)
+        data_chunks.append(chunk_data)
 
-        for future in futures:
-            future.result()
+    data = b"".join(data_chunks)
+    result_file_path = os.path.join(temp_dir_path, "result")
 
-    if compressed:
-        unzip_result_dir_path = os.path.join(temp_dir_path, "result")
-        master_zip_path = shlex.quote(os.path.join(temp_dir_path, master_chunk_name))
-
-        os.makedirs(unzip_result_dir_path, exist_ok=True)
-
-        unzip_command = f"7z x {master_zip_path} -o{unzip_result_dir_path}"
-        os.system(unzip_command)
-
-        result_file_name = os.listdir(unzip_result_dir_path)[0]
-        result_file_path = os.path.join(unzip_result_dir_path, result_file_name)
-
-    else:
-        result_file_path = os.path.join(temp_dir_path, os.listdir(temp_dir_path)[0])
+    with open(result_file_path, "wb") as file:
+        file.write(data)
 
     mime_type, _ = mimetypes.guess_type(result_file_path) or "application/octet-stream"
-    data = None
-
-    with open(result_file_path, "rb") as f:
-        data = f.read()
-
     shutil.rmtree(temp_dir_path)
-
     result = [data, mime_type, node.name]
-
     cache[node_id] = result
 
     return result
@@ -137,17 +95,26 @@ class NodesView(views.APIView):
 
     serializer_class = None
 
-    def get(self, request, *args):
+    def get(self, _, *args):
         return JsonResponse(
             {
                 "result": Node.tree(),
             }
         )
 
-    def post(self, request, *args):
+    def post(self, request: HttpRequest, *args):
+        chunks: int = request.POST.get("chunks")
+
         node_form = NodeForm(data=request.POST, files=request.FILES)
-        instance = node_form.save(commit=False)
+
+        instance: Node = node_form.save(commit=False)
         instance.save()
+
+        for index in range(chunks):
+            Chunk.objects.get_or_create(
+                index=index,
+                node=instance,
+            )
 
         return JsonResponse(
             {
@@ -173,6 +140,56 @@ class NodesView(views.APIView):
         return JsonResponse(
             {
                 "status": "success",
+            }
+        )
+
+
+class ChunksView(views.APIView):
+    permission_classes = (rest_framework.permissions.AllowAny,)
+    authentication_classes = ()
+    # permission_classes = (rest_framework.permissions.IsAuthenticated,)
+    # authentication_classes = (JWTAuthentication,)
+
+    serializer_class = None
+
+    def get(
+        self,
+        _,
+        node_id,
+        chunk_index,
+    ):
+        chunk = Chunk.objects.get(
+            node_id=node_id,
+            index=chunk_index,
+        )
+        return JsonResponse(
+            {
+                "result": chunk.representation(),
+            }
+        )
+
+    def post(
+        self,
+        request: HttpRequest,
+        node_id,
+        chunk_index,
+    ):
+        chunk = Chunk.objects.get(
+            node_id=node_id,
+            index=chunk_index,
+        )
+        node_form = ChunkForm(
+            data=request.POST,
+            files=request.FILES,
+            instance=chunk,
+        )
+
+        instance: Chunk = node_form.save(commit=False)
+        instance.save()
+
+        return JsonResponse(
+            {
+                "result": instance.representation(),
             }
         )
 

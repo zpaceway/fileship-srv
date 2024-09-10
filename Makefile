@@ -1,5 +1,5 @@
 run:
-	python manage.py runserver 0.0.0.0:9898
+	python manage.py runserver 0.0.0.0:9899
 
 migrations:
 	python manage.py makemigrations
@@ -10,5 +10,3 @@ migrate:
 install:
 	sudo apt install p7zip-full --install-suggests
 
-tunnel:
-	lt --subdomain fileship --port 9898

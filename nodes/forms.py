@@ -1,16 +1,43 @@
+import uuid
 import json
 from django import forms
 from nodes import connectors
-from nodes.models import Node
+from nodes.models import Chunk, Node
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 
 AVAILABLE_CONNECTORS = {
-    "telegram": {"name": "Telegram Connector", "cls": connectors.TelegramConnector},
-    "local": {"name": "Local Connector", "cls": connectors.LocalConnector},
+    "telegram": {
+        "name": connectors.TelegramConnector.name,
+        "cls": connectors.TelegramConnector,
+    },
+    "local": {
+        "name": connectors.LocalConnector.name,
+        "cls": connectors.LocalConnector,
+    },
 }
 
 
 class NodeForm(forms.ModelForm):
+    id = forms.CharField(
+        initial=lambda: uuid.uuid4().hex[0:8],
+    )
+    name = forms.CharField(required=False)
+
+    class Meta:
+        model = Node
+        fields = [
+            "id",
+            "parent",
+            "name",
+            "size",
+        ]
+
+
+class ChunkForm(forms.ModelForm):
+    id = forms.CharField(
+        initial=lambda: uuid.uuid4().hex[0:8],
+    )
     connector = forms.ChoiceField(
         choices=list(
             map(
@@ -24,34 +51,27 @@ class NodeForm(forms.ModelForm):
         required=True,
     )
     file = forms.FileField(required=False)
-    name = forms.CharField(required=False)
 
     class Meta:
-        model = Node
+        model = Chunk
         fields = [
-            "parent",
-            "name",
+            "id",
+            "node",
+            "index",
             "file",
         ]
 
     def save(self, commit: bool):
-        instance = super().save(commit)
-        file = self.cleaned_data["file"]
+        instance: Chunk = super().save(commit)
+        file: InMemoryUploadedFile = self.cleaned_data["file"]
         connector_cls = AVAILABLE_CONNECTORS.get(
             self.cleaned_data["connector"], {}
         ).get("cls")
-        connector = connector_cls()
+        connector: connectors.AbstractConnector = connector_cls()
 
         if file:
             instance.size = file.size
-            chunks, compressed = connector.upload(file)
-            if not instance.name:
-                instance.name = file.name
-            instance.data = json.dumps(
-                {
-                    "chunks": chunks,
-                    "compressed": compressed,
-                }
-            )
+            chunk = connector.upload(file)
+            instance.data = json.dumps(chunk)
 
         return instance
