@@ -21,7 +21,7 @@ class Node(models.Model):
     def get_size(self):
         self.children: BaseManager[Node]
 
-        if self.data is None:
+        if self.data is not None:
             return self.size
 
         full_size = sum([child.get_size() for child in self.children.all()])

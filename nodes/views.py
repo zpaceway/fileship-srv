@@ -65,7 +65,8 @@ browser_mime_types = [
 ]
 
 MAX_CACHE_SIZE = 5 * 1024 * 1024 * 1024
-cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=300)
+TTL = 6 * 60 * 60
+cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TTL)
 
 
 def get_file_data_from_node_id(node_id: str):
@@ -82,7 +83,7 @@ def get_file_data_from_node_id(node_id: str):
 
     master_chunk_name: str = None
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=16) as executor:
         futures = []
         for chunk_object in chunk_objects:
             chunk_name = chunk_object["name"]
