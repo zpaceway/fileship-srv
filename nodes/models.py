@@ -125,7 +125,9 @@ class Node(models.Model):
         parent_node: Node = self.parent
 
         while parent_node:
-            path_chunks.append(parent_node.name if property == "name" else self.id)
+            path_chunks.append(
+                parent_node.name if property == "name" else parent_node.id
+            )
             parent_node = parent_node.parent
 
         path_chunks.reverse()
