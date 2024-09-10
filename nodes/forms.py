@@ -60,10 +60,9 @@ class ChunkForm(forms.ModelForm):
         instance: Chunk = super().save(commit)
 
         file: InMemoryUploadedFile = self.cleaned_data["file"]
-        connector_cls = AVAILABLE_CONNECTORS.get(
+        connector: connectors.AbstractConnector = AVAILABLE_CONNECTORS.get(
             self.cleaned_data["connector"], {}
         ).get("cls")
-        connector: connectors.AbstractConnector = connector_cls()
 
         if file:
             instance.size = file.size

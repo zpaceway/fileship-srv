@@ -23,12 +23,18 @@ class Node(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def get_size(self):
-        if self.chunks.count() == 0:
+        if self.chunks.count() > 0:
             return self.size
 
         full_size = sum([child.get_size() for child in self.children.all()])
 
         return full_size
+
+    def uploaded(self):
+        if self.chunks.count() > 0:
+            return all(chunk.uploaded() for chunk in self.chunks.all())
+
+        return all([child.uploaded() for child in self.children.all()])
 
     def representation(self, order_by=["name"]):
         self.children: BaseManager[Node]
@@ -40,6 +46,7 @@ class Node(models.Model):
             "size": self.get_size(),
             "url": None,
             "children": None,
+            "uploaded": self.uploaded(),
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),
         }
@@ -123,3 +130,9 @@ class Chunk(models.Model):
 
     def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
         return f"{self.node.get_fullname(property)}:{self.index}"
+
+    def uploaded(self) -> bool:
+        return not not self.data
+
+    def __str__(self) -> str:
+        return self.get_fullname()

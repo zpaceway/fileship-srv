@@ -1,3 +1,4 @@
+from typing import List
 from django.http import HttpResponse
 import requests
 import json
@@ -63,15 +64,22 @@ def get_file_data_from_node_id(node_id: str):
     temp_dir_path = os.path.join(settings.BASE_DIR, "tmp", uuid.uuid4().__str__())
     os.makedirs(temp_dir_path, exist_ok=True)
 
-    telegram_connector = TelegramConnector()
+    data_chunks = [None] * node.chunks.count()
 
-    data_chunks = []
-
-    for chunk in node.chunks.all().order_by("index"):
+    def get_chunk_data(chunk: Chunk):
         telegram_file_id = json.loads(chunk.data)["telegram_file_id"]
-        url = telegram_connector.get_file_url(telegram_file_id)
+        url = TelegramConnector.get_file_url(telegram_file_id)
         chunk_data = get_url_data_content(url)
-        data_chunks.append(chunk_data)
+        data_chunks[chunk.index] = chunk_data
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        futures: List[concurrent.futures.Future] = []
+        for chunk in node.chunks.all():
+            future = executor.submit(get_chunk_data, chunk)
+            futures.append(future)
+
+        for future in futures:
+            future.result()
 
     data = b"".join(data_chunks)
     result_file_path = os.path.join(temp_dir_path, "result")
@@ -104,9 +112,24 @@ class NodesView(views.APIView):
 
     def post(self, request: HttpRequest, *args):
         chunks: int = int(request.POST.get("chunks"))
+        name = request.POST.get("name")
+        parent_id = request.POST.get("parent_id")
+
+        node = None
+        try:
+            node = Node.objects.get(
+                name=name,
+                parent_id=parent_id,
+            )
+            return JsonResponse(
+                {
+                    "result": node.representation(),
+                }
+            )
+        except Node.DoesNotExist:
+            pass
 
         node_form = NodeForm(data=request.POST, files=request.FILES)
-
         instance: Node = node_form.save(commit=False)
         instance.save()
 
@@ -182,6 +205,14 @@ class ChunksView(views.APIView):
             node_id=node_id,
             index=chunk_index,
         )
+
+        if chunk.uploaded():
+            return JsonResponse(
+                {
+                    "result": chunk.representation(),
+                }
+            )
+
         node_form = ChunkForm(
             data=request.POST,
             files=request.FILES,

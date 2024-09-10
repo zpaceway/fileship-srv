@@ -16,6 +16,7 @@ class AbstractConnector(abc.ABC):
 
     name: str
 
+    @classmethod
     @abc.abstractmethod
     def upload(
         self, file: InMemoryUploadedFile
@@ -29,15 +30,16 @@ class TelegramConnector(AbstractConnector):
 
     name = "Telegram Connector"
 
+    @classmethod
     def upload(
-        self, uploaded_file: InMemoryUploadedFile
+        cls, uploaded_file: InMemoryUploadedFile
     ) -> List[Dict[Union[Literal["name"], Literal["url"]], str]]:
         filename = uploaded_file.name
 
         print(f"Uplaoding chunk {filename}")
-        url = f"https://api.telegram.org/bot{self.TELEGRAM_BOT_TOKEN}/sendDocument"
+        url = f"https://api.telegram.org/bot{cls.TELEGRAM_BOT_TOKEN}/sendDocument"
         files = {"document": (filename, uploaded_file.read())}
-        data = {"chat_id": self.TELEGRAM_ADMIN_CHAT_ID}
+        data = {"chat_id": cls.TELEGRAM_ADMIN_CHAT_ID}
 
         @auto_retry
         def get_send_document_response():
@@ -63,9 +65,10 @@ class TelegramConnector(AbstractConnector):
             "telegram_file_id": file_id,
         }
 
-    def get_file_path(self, file_id):
+    @classmethod
+    def get_file_path(cls, file_id):
         print(f"Getting file path for file {file_id}")
-        url = f"https://api.telegram.org/bot{self.TELEGRAM_BOT_TOKEN}/getFile"
+        url = f"https://api.telegram.org/bot{cls.TELEGRAM_BOT_TOKEN}/getFile"
         params = {"file_id": file_id}
 
         @auto_retry
@@ -84,14 +87,16 @@ class TelegramConnector(AbstractConnector):
         else:
             raise Exception(f"Failed to get file path: {result['description']}")
 
-    def get_file_url(self, file_id: str):
-        return f"https://api.telegram.org/file/bot{self.TELEGRAM_BOT_TOKEN}/{self.get_file_path(file_id)}"
+    @classmethod
+    def get_file_url(cls, file_id: str):
+        return f"https://api.telegram.org/file/bot{cls.TELEGRAM_BOT_TOKEN}/{cls.get_file_path(file_id)}"
 
 
 class LocalConnector(AbstractConnector):
     name = "Local Connector"
 
-    def upload(self, file: InMemoryUploadedFile):
+    @classmethod
+    def upload(cls, file: InMemoryUploadedFile):
         file_path = f"{settings.BASE_DIR}/media/{file.name}"
         with open(file_path, "wb") as f:
             f.write(file.read())
