@@ -67,8 +67,10 @@ def get_file_data_from_node_id(node_id: str):
     data_chunks = [None] * node.chunks.count()
 
     def get_chunk_data(chunk: Chunk):
-        telegram_file_id = json.loads(chunk.data)["telegram_file_id"]
-        url = TelegramConnector.get_file_url(telegram_file_id)
+        chunk_data_dict = json.loads(chunk.data)
+        url = chunk_data_dict.get("url") or TelegramConnector.get_file_url(
+            chunk_data_dict["telegram_file_id"]
+        )
         chunk_data = get_url_data_content(url)
         data_chunks[chunk.index] = chunk_data
 

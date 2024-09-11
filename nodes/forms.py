@@ -15,6 +15,10 @@ AVAILABLE_CONNECTORS = {
         "name": connectors.LocalConnector.name,
         "cls": connectors.LocalConnector,
     },
+    "discord": {
+        "name": connectors.DiscordConnector.name,
+        "cls": connectors.DiscordConnector,
+    },
 }
 
 

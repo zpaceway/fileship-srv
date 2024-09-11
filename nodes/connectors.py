@@ -96,11 +96,35 @@ class LocalConnector(AbstractConnector):
     name = "Local Connector"
 
     @classmethod
-    def upload(cls, file: InMemoryUploadedFile):
-        file_path = f"{settings.BASE_DIR}/media/{file.name}"
+    def upload(cls, uploaded_file: InMemoryUploadedFile):
+        file_path = f"{settings.BASE_DIR}/media/{uploaded_file.name}"
         with open(file_path, "wb") as f:
-            f.write(file.read())
+            f.write(uploaded_file.read())
 
         return {
-            "url": os.path.join("media", file.name),
+            "url": os.path.join("media", uploaded_file.name),
+        }
+
+
+class DiscordConnector(AbstractConnector):
+    name = "Discord Connector"
+
+    @classmethod
+    def upload(cls, uploaded_file: InMemoryUploadedFile):
+        url = f"https://discord.com/api/v10/channels/{os.getenv('DISCORD_CHANNEL_ID')}/messages"
+        headers = {"Authorization": f"Bot {os.getenv('DISCORD_BOT_TOKEN')}"}
+        files = {"file": (uploaded_file.name, uploaded_file.read())}
+
+        @auto_retry
+        def get_file_url_response():
+            response = requests.post(url, headers=headers, files=files)
+            response.raise_for_status()
+            url = response.json()["attachments"][0]["url"]
+
+            return url
+
+        url = get_file_url_response()
+
+        return {
+            "url": url,
         }
