@@ -7,7 +7,7 @@ from django.db.models.manager import BaseManager
 
 
 MAX_CACHE_SIZE = 1024
-TTL = 6
+TTL = 12
 cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TTL)
 
 
@@ -78,6 +78,7 @@ class Node(models.Model):
             "name": self.name,
             # "fullname": self.get_fullname("id"), # performance issues
             "size": self.get_size(),
+            # "chunks": [chunk.representation() for chunk in self.chunks.all()], # performance issues
             "url": None,
             "children": None,
             "uploaded": self.uploaded(),
@@ -160,17 +161,17 @@ class Chunk(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = [
-            ("node", "index"),
+        constraints = [
+            models.UniqueConstraint(fields=["node", "index"], name="unique_node_chunk")
         ]
 
     def representation(self):
         return {
             "id": self.id,
-            "name": self.get_name(),
-            "fullname": self.get_fullname("id"),
+            # "name": self.get_name(),
+            # "fullname": self.get_fullname("id"),
             "size": self.size,
-            "data": json.loads(self.data),
+            # "data": self.data and json.loads(self.data),
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),
         }
