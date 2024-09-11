@@ -70,7 +70,7 @@ class Node(models.Model):
 
         return cache[cache_key]
 
-    def representation(self, order_by=["name"]):
+    def representation(self, depth=0, order_by=List[Literal["name"]]):
         self.children: BaseManager[Node]
 
         base_node = {
@@ -93,24 +93,26 @@ class Node(models.Model):
             del base_node["url"]
             del base_node["chunks"]
 
-            base_node["children"] = [
-                child.representation(order_by)
-                for child in self.children.all()
-                .select_related("parent")
-                .prefetch_related("children")
-                .prefetch_related("chunks")
-                .order_by(*order_by)
-            ]
+            base_node["children"] = (
+                [
+                    child.representation(depth=depth - 1, order_by=order_by)
+                    for child in self.children.all()
+                    .select_related("parent")
+                    .prefetch_related("children")
+                    .prefetch_related("chunks")
+                    .order_by(*order_by)
+                ]
+                if depth - 1 >= 0
+                else []
+            )
 
         return base_node
 
     @staticmethod
-    def tree(order_by=["name"]):
+    def tree(node_id=None, order_by=List[Literal["name"]]):
         return [
-            node.representation(order_by)
-            for node in Node.objects.filter(
-                parent=None,
-            )
+            node.representation(order_by=order_by)
+            for node in Node.objects.filter(parent=node_id)
             .select_related("parent")
             .prefetch_related("children")
             .prefetch_related("chunks")

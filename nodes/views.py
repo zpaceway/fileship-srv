@@ -103,10 +103,10 @@ class NodesView(views.APIView):
 
     serializer_class = None
 
-    def get(self, _, *args):
+    def get(self, _, node_id=None):
         return JsonResponse(
             {
-                "result": Node.tree(),
+                "result": Node.tree(node_id=node_id, order_by=["name"]),
             }
         )
 
