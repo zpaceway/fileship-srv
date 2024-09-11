@@ -76,9 +76,8 @@ class Node(models.Model):
         base_node = {
             "id": self.id,
             "name": self.name,
-            # "fullname": self.get_fullname("id"), # performance issues
             "size": self.get_size(),
-            # "chunks": [chunk.representation() for chunk in self.chunks.all()], # performance issues
+            "chunks": [chunk.representation() for chunk in self.chunks.all()],
             "url": None,
             "children": None,
             "uploaded": self.uploaded(),
@@ -92,6 +91,7 @@ class Node(models.Model):
 
         else:
             del base_node["url"]
+            del base_node["chunks"]
 
             base_node["children"] = [
                 child.representation(order_by)
@@ -168,10 +168,9 @@ class Chunk(models.Model):
     def representation(self):
         return {
             "id": self.id,
-            # "name": self.get_name(),
-            # "fullname": self.get_fullname("id"),
+            "name": self.get_name(),
             "size": self.size,
-            # "data": self.data and json.loads(self.data),
+            "data": self.data and json.loads(self.data),
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),
         }
