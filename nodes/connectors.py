@@ -111,17 +111,16 @@ class DiscordConnector(AbstractConnector):
 
     @classmethod
     def upload(cls, uploaded_file: InMemoryUploadedFile):
-        url = f"https://discord.com/api/v10/channels/{os.getenv('DISCORD_CHANNEL_ID')}/messages"
+        api_url = f"https://discord.com/api/v10/channels/{os.getenv('DISCORD_CHANNEL_ID')}/messages"
         headers = {"Authorization": f"Bot {os.getenv('DISCORD_BOT_TOKEN')}"}
         files = {"file": (uploaded_file.name, uploaded_file.read())}
 
         @auto_retry
         def get_file_url_response():
-            response = requests.post(url, headers=headers, files=files)
+            response = requests.post(api_url, headers=headers, files=files)
             response.raise_for_status()
-            url = response.json()["attachments"][0]["url"]
 
-            return url
+            return response.json()["attachments"][0]["url"]
 
         url = get_file_url_response()
 
