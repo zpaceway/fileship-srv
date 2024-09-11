@@ -247,6 +247,7 @@ class NodesDownloadView(views.APIView):
         response["Content-Disposition"] = (
             f'{"inline" if mime_type in browser_mime_types else "attachment"}; filename="{filename}"'
         )
-        response["Content-Type"] = mime_type
+
+        response["Content-Type"] = mime_type or "application/octet-stream"
 
         return response
