@@ -48,11 +48,15 @@ cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TTL)
 
 
 @auto_retry
-def get_url_data_content(url) -> bytes:
-    response = requests.get(url)
-    response.raise_for_status()
+def get_url_data_content(url: str) -> bytes:
+    if url.startswith("http://") or url.startswith("https://"):
+        response = requests.get(url)
+        response.raise_for_status()
 
-    return response.content
+        return response.content
+
+    with open(os.path.join(settings.BASE_DIR, url), "rb") as f:
+        return f.read()
 
 
 def get_file_data_from_node_id(node_id: str):

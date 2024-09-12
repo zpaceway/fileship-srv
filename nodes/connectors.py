@@ -34,11 +34,9 @@ class TelegramConnector(AbstractConnector):
     def upload(
         cls, uploaded_file: InMemoryUploadedFile
     ) -> List[Dict[Union[Literal["name"], Literal["url"]], str]]:
-        filename = uploaded_file.name
-
-        print(f"Uplaoding chunk {filename}")
+        chunk_name = uuid.uuid4()
         url = f"https://api.telegram.org/bot{cls.TELEGRAM_BOT_TOKEN}/sendDocument"
-        files = {"document": (filename, uploaded_file.read())}
+        files = {"document": (chunk_name, uploaded_file.read())}
         data = {"chat_id": cls.TELEGRAM_ADMIN_CHAT_ID}
 
         @auto_retry
@@ -49,8 +47,6 @@ class TelegramConnector(AbstractConnector):
             return response.json()
 
         result = get_send_document_response()
-
-        print(f"Chunk {filename} result {result}")
 
         if not result["ok"]:
             raise Exception(f"Failed to upload file: {result['description']}")
@@ -67,7 +63,6 @@ class TelegramConnector(AbstractConnector):
 
     @classmethod
     def get_file_path(cls, file_id):
-        print(f"Getting file path for file {file_id}")
         url = f"https://api.telegram.org/bot{cls.TELEGRAM_BOT_TOKEN}/getFile"
         params = {"file_id": file_id}
 
@@ -79,8 +74,6 @@ class TelegramConnector(AbstractConnector):
             return response.json()
 
         result = get_file_path_response()
-
-        print(f"File path result for {file_id} is {result}")
 
         if result["ok"]:
             return result["result"]["file_path"]
@@ -97,12 +90,13 @@ class LocalConnector(AbstractConnector):
 
     @classmethod
     def upload(cls, uploaded_file: InMemoryUploadedFile):
-        file_path = f"{settings.BASE_DIR}/media/{uploaded_file.name}"
+        chunk_name = uuid.uuid4()
+        file_path = os.path.join(settings.BASE_DIR, "media", chunk_name)
         with open(file_path, "wb") as f:
             f.write(uploaded_file.read())
 
         return {
-            "url": os.path.join("media", uploaded_file.name),
+            "url": os.path.join("media", chunk_name),
         }
 
 
@@ -111,9 +105,10 @@ class DiscordConnector(AbstractConnector):
 
     @classmethod
     def upload(cls, uploaded_file: InMemoryUploadedFile):
+        chunk_name = uuid.uuid4()
         api_url = f"https://discord.com/api/v10/channels/{os.getenv('DISCORD_CHANNEL_ID')}/messages"
         headers = {"Authorization": f"Bot {os.getenv('DISCORD_BOT_TOKEN')}"}
-        files = {"file": (uploaded_file.name, uploaded_file.read())}
+        files = {"file": (chunk_name, uploaded_file.read())}
 
         @auto_retry
         def get_file_url_response():
