@@ -1,8 +1,10 @@
 import os
 import json
-from typing import List, Literal, Union
+from typing import List, Literal
+import shutil
 from cachetools import TTLCache
 from django.db import models
+from django.conf import settings
 from django.db.models.manager import BaseManager
 
 
@@ -185,6 +187,15 @@ class Chunk(models.Model):
 
     def uploaded(self) -> bool:
         return not not self.data
+
+    def delete(self, using=None, keep_parents=False):
+        result = super().delete(using, keep_parents)
+
+        url: str = self.data and self.data.get("url")
+        if url and not url.startswith("http://") and not url.startswith("https://"):
+            shutil.rmtree(os.path.join(settings.BASE_DIR, url))
+
+        return result
 
     def __str__(self) -> str:
         return self.get_fullname()
