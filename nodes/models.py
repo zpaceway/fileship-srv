@@ -43,7 +43,6 @@ class Node(models.Model):
             [
                 child.get_size()
                 for child in self.children.all()
-                .select_related("parent")
                 .prefetch_related("children")
                 .prefetch_related("chunks")
             ]
@@ -64,7 +63,6 @@ class Node(models.Model):
             [
                 child.uploaded()
                 for child in self.children.all()
-                .select_related("parent")
                 .prefetch_related("children")
                 .prefetch_related("chunks")
             ]
@@ -99,7 +97,6 @@ class Node(models.Model):
                 [
                     child.representation(depth=depth - 1, order_by=order_by)
                     for child in self.children.all()
-                    .select_related("parent")
                     .prefetch_related("children")
                     .prefetch_related("chunks")
                     .order_by(*order_by)
@@ -115,7 +112,6 @@ class Node(models.Model):
         return [
             node.representation(order_by=order_by)
             for node in Node.objects.filter(parent=node_id)
-            .select_related("parent")
             .prefetch_related("children")
             .prefetch_related("chunks")
             .order_by(*order_by)

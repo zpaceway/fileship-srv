@@ -31,6 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "localhost",
     ".shiptunnel.zpaceway.com",
+    ".serveo.net",
 ]
 
 
