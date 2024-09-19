@@ -2,15 +2,9 @@ import os
 import json
 from typing import List, Literal
 import shutil
-from cachetools import TTLCache
 from django.db import models
 from django.conf import settings
 from django.db.models.manager import BaseManager
-
-
-MAX_CACHE_SIZE = 1024
-TTL = 12
-cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TTL)
 
 
 class Node(models.Model):
@@ -31,15 +25,10 @@ class Node(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def get_size(self):
-        cache_key = f"size__{self.id}"
-        if cache.get(cache_key):
-            return cache[cache_key]
-
         if self.chunks.count() > 0:
-            cache[cache_key] = self.size
-            return cache[cache_key]
+            return self.size
 
-        cache[cache_key] = sum(
+        return sum(
             [
                 child.get_size()
                 for child in self.children.all()
@@ -48,18 +37,11 @@ class Node(models.Model):
             ]
         )
 
-        return cache[cache_key]
-
     def uploaded(self):
-        cache_key = f"uploaded__{self.id}"
-        if cache.get(cache_key):
-            return cache[cache_key]
-
         if self.chunks.count() > 0:
-            cache[cache_key] = all(chunk.uploaded() for chunk in self.chunks.all())
-            return cache[cache_key]
+            return all([chunk.uploaded() for chunk in self.chunks.all()])
 
-        cache[cache_key] = all(
+        return all(
             [
                 child.uploaded()
                 for child in self.children.all()
@@ -68,19 +50,18 @@ class Node(models.Model):
             ]
         )
 
-        return cache[cache_key]
-
     def representation(self, depth=0, order_by=List[Literal["name"]]):
         self.children: BaseManager[Node]
 
+        # TODO: Save size and uploaded in the database
         base_node = {
             "id": self.id,
             "name": self.name,
-            "size": self.get_size(),
+            "size": self.size,
             "chunks": [chunk.representation() for chunk in self.chunks.all()],
             "url": None,
             "children": None,
-            "uploaded": self.uploaded(),
+            "uploaded": True,
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),
         }
@@ -118,10 +99,6 @@ class Node(models.Model):
         ]
 
     def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
-        cache_key = f"fullname__{property}__{self.id}"
-        if cache.get(cache_key):
-            return cache[cache_key]
-
         path_chunks: List[str] = [self.name if property == "name" else self.id]
         parent_node: Node = self.parent
 
@@ -133,9 +110,7 @@ class Node(models.Model):
 
         path_chunks.reverse()
 
-        cache[cache_key] = f'/{"/".join(path_chunks)}'
-
-        return cache[cache_key]
+        return f'/{"/".join(path_chunks)}'
 
     def __str__(self) -> str:
         return self.get_fullname()
