@@ -28,6 +28,9 @@ class Node(models.Model):
         if self.chunks.count() > 0:
             return self.size
 
+        # TODO: Save size in the database
+        return 0
+
         return sum(
             [
                 child.get_size()
@@ -41,6 +44,9 @@ class Node(models.Model):
         if self.chunks.count() > 0:
             return all([chunk.uploaded() for chunk in self.chunks.all()])
 
+        # TODO: Save uploaded in the database
+        return True
+
         return all(
             [
                 child.uploaded()
@@ -53,15 +59,14 @@ class Node(models.Model):
     def representation(self, depth=0, order_by=List[Literal["name"]]):
         self.children: BaseManager[Node]
 
-        # TODO: Save size and uploaded in the database
         base_node = {
             "id": self.id,
             "name": self.name,
-            "size": self.size,
+            "size": self.get_size(),
             "chunks": [chunk.representation() for chunk in self.chunks.all()],
             "url": None,
             "children": None,
-            "uploaded": True,
+            "uploaded": self.uploaded(),
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),
         }
