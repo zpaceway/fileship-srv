@@ -28,28 +28,20 @@ class Node(models.Model):
         if self.chunks.count() > 0:
             return self.size
 
-        # TODO: Save size in the database
-        return 0
+        size = sum([child.size for child in self.children.all()])
 
-        return sum(
-            [
-                child.get_size()
-                for child in self.children.all()
-                .prefetch_related("children")
-                .prefetch_related("chunks")
-            ]
-        )
+        if size != self.size:
+            self.save()
 
-    def uploaded(self):
+        return self.size
+
+    def get_uploaded(self):
         if self.chunks.count() > 0:
-            return all([chunk.uploaded() for chunk in self.chunks.all()])
-
-        # TODO: Save uploaded in the database
-        return True
+            return self.chunks.filter(data__isnull=True).only("id").count() == 0
 
         return all(
             [
-                child.uploaded()
+                child.chunks.filter(data__isnull=True).only("id").count() == 0
                 for child in self.children.all()
                 .prefetch_related("children")
                 .prefetch_related("chunks")
@@ -66,7 +58,7 @@ class Node(models.Model):
             "chunks": [chunk.representation() for chunk in self.chunks.all()],
             "url": None,
             "children": None,
-            "uploaded": self.uploaded(),
+            "uploaded": self.get_uploaded(),
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),
         }
@@ -160,9 +152,6 @@ class Chunk(models.Model):
 
     def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
         return f"{self.node.get_fullname(property)}:{self.index}"
-
-    def uploaded(self) -> bool:
-        return not not self.data
 
     def delete(self, using=None, keep_parents=False):
         result = super().delete(using, keep_parents)

@@ -212,13 +212,6 @@ class ChunksView(views.APIView):
             index=chunk_index,
         )
 
-        if chunk.uploaded():
-            return JsonResponse(
-                {
-                    "result": chunk.representation(),
-                }
-            )
-
         node_form = ChunkForm(
             data=request.POST,
             files=request.FILES,
