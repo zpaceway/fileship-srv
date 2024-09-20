@@ -40,7 +40,15 @@ class Node(models.Model):
         if self.chunks.exists():
             return not self.chunks.filter(data__isnull=True).exists()
 
-        return not self.children.filter(chunks__data__isnull=True).exists()
+        return (
+            not self.children.annotate(
+                has_chunks=models.Exists(
+                    Chunk.objects.filter(node=models.OuterRef("pk"))
+                )
+            )
+            .filter(has_chunks=True, chunks__data__isnull=True)
+            .exists()
+        )
 
     def representation(self, order_by: Optional[List[Literal["name"]]] = None):
         self.children: BaseManager[Node]
