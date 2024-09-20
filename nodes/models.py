@@ -93,16 +93,25 @@ class Node(models.Model):
             del cached_trees[cache_key]
             return cached_result
         
-        result = [
+        children = [
             node.representation(order_by=order_by)
             for node in Node.objects.filter(parent=node_id)
             .prefetch_related("chunks")
             .order_by(*order_by)
         ]
         
-        cached_trees[cache_key] = result
+        if node_id:
+            pathname= Node.objects.get(id=node_id).get_fullname()
+            pathname += "/"
+        else:
+            pathname = "/"
         
-        return result
+        cached_trees[cache_key] = {
+            "pathname": pathname,
+            "children": children,
+        }
+        
+        return cached_trees[cache_key]
 
     def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
         path_chunks: List[str] = [self.name if property == "name" else self.id]
