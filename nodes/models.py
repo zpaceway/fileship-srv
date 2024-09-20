@@ -25,10 +25,10 @@ class Node(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def get_size(self):
-        if self.chunks.all().values("id").first():
+        if self.chunks.values("id").exists():
             return self.size
 
-        size = sum([child["size"] for child in self.children.all().values("size")])
+        size = sum([child["size"] for child in self.children.values("size")])
 
         if size != self.size:
             self.size = size
@@ -37,13 +37,13 @@ class Node(models.Model):
         return self.size
 
     def get_uploaded(self):
-        if self.chunks.all().values("id").first():
-            return not self.chunks.filter(data__isnull=True).values("id").first()
+        if self.chunks.values("id").exists():
+            return not self.chunks.filter(data__isnull=True).values("id").exists()
 
         return all(
             [
-                not child.chunks.filter(data__isnull=True).values("id").first()
-                for child in self.children.all().prefetch_related("children", "chunks")
+                not child.chunks.filter(data__isnull=True).values("id").exists()
+                for child in self.children.prefetch_related("children", "chunks")
             ]
         )
 
