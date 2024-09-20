@@ -28,7 +28,7 @@ class Node(models.Model):
         if self.chunks.exists():
             return self.size
 
-        size = sum([child["size"] for child in self.children.values("size")])
+        size = self.children.aggregate(total_size=models.Sum("size"))["total_size"]
 
         if size != self.size:
             self.size = size
@@ -42,7 +42,7 @@ class Node(models.Model):
 
         return not self.children.filter(chunks__data__isnull=True).exists()
 
-    def representation(self, depth=0, order_by: Optional[List[Literal["name"]]] = None):
+    def representation(self, order_by: Optional[List[Literal["name"]]] = None):
         self.children: BaseManager[Node]
 
         if order_by is None:
@@ -68,14 +68,7 @@ class Node(models.Model):
             del base_node["url"]
             del base_node["chunks"]
 
-            base_node["children"] = (
-                [
-                    child.representation(depth=depth - 1, order_by=order_by)
-                    for child in self.children.all().order_by(*order_by)
-                ]
-                if depth - 1 >= 0
-                else []
-            )
+            base_node["children"] = []
 
         return base_node
 
@@ -85,7 +78,9 @@ class Node(models.Model):
             order_by = ["name"]
         return [
             node.representation(order_by=order_by)
-            for node in Node.objects.filter(parent=node_id).order_by(*order_by)
+            for node in Node.objects.filter(parent=node_id)
+            .prefetch_related("chunks")
+            .order_by(*order_by)
         ]
 
     def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
@@ -133,11 +128,7 @@ class Chunk(models.Model):
     def representation(self):
         return {
             "id": self.id,
-            "name": self.get_name(),
-            "size": self.size,
-            "data": self.data and json.loads(self.data),
-            "createdAt": self.created_at.isoformat(),
-            "updatedAt": self.updated_at.isoformat(),
+            "data": self.data is not None,
         }
 
     def get_name(self) -> str:
