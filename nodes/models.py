@@ -30,7 +30,7 @@ class Node(models.Model):
         if self.chunks.exists():
             return self.size
 
-        size = self.children.aggregate(total_size=models.Sum("size"))["total_size"]
+        size = self.children.aggregate(total_size=models.Sum("size"))["total_size"] or 0
 
         if size != self.size:
             self.size = size
