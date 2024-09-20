@@ -44,11 +44,10 @@ class Node(models.Model):
 
         return (
             not self.children.annotate(
-                has_chunks=models.Exists(
-                    Chunk.objects.filter(node=models.OuterRef("pk"))
+                has_empty_chunks=models.Exists(
+                    Chunk.objects.filter(node=models.OuterRef("pk"), data__isnull=True)
                 )
-            )
-            .filter(has_chunks=True, chunks__data__isnull=True)
+            ).filter(has_empty_chunks=True)
             .exists()
         )
 
