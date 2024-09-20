@@ -25,10 +25,10 @@ class Node(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def get_size(self):
-        if self.chunks.count() > 0:
+        if self.chunks.all().values("id").first():
             return self.size
 
-        size = sum([child.size for child in self.children.all()])
+        size = sum([child["size"] for child in self.children.all().values("size")])
 
         if size != self.size:
             self.size = size
@@ -37,15 +37,13 @@ class Node(models.Model):
         return self.size
 
     def get_uploaded(self):
-        if self.chunks.count() > 0:
-            return self.chunks.filter(data__isnull=True).only("id").count() == 0
+        if self.chunks.all().values("id").first():
+            return not self.chunks.filter(data__isnull=True).values("id").first()
 
         return all(
             [
-                child.chunks.filter(data__isnull=True).only("id").count() == 0
-                for child in self.children.all()
-                .prefetch_related("children")
-                .prefetch_related("chunks")
+                not child.chunks.filter(data__isnull=True).values("id").first()
+                for child in self.children.all().prefetch_related("children", "chunks")
             ]
         )
 
@@ -76,8 +74,7 @@ class Node(models.Model):
                 [
                     child.representation(depth=depth - 1, order_by=order_by)
                     for child in self.children.all()
-                    .prefetch_related("children")
-                    .prefetch_related("chunks")
+                    .prefetch_related("children", "chunks")
                     .order_by(*order_by)
                 ]
                 if depth - 1 >= 0
@@ -91,8 +88,7 @@ class Node(models.Model):
         return [
             node.representation(order_by=order_by)
             for node in Node.objects.filter(parent=node_id)
-            .prefetch_related("children")
-            .prefetch_related("chunks")
+            .prefetch_related("children", "chunks")
             .order_by(*order_by)
         ]
 
