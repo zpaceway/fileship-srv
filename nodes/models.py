@@ -31,6 +31,7 @@ class Node(models.Model):
         size = sum([child.size for child in self.children.all()])
 
         if size != self.size:
+            self.size = size
             self.save()
 
         return self.size
