@@ -248,5 +248,6 @@ class NodesDownloadView(views.APIView):
         )
 
         response["Content-Type"] = mime_type or "application/octet-stream"
+        response["Content-Length"] = len(data)
 
         return response
