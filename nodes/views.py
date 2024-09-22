@@ -12,7 +12,7 @@ from nodes.forms import ChunkForm, NodeForm
 from nodes.models import Chunk, Node
 from rest_framework import views
 import rest_framework.permissions
-from django.http.response import JsonResponse
+from django.http.response import JsonResponse, StreamingHttpResponse
 import shutil
 from core.utils import auto_retry
 import mimetypes
@@ -59,46 +59,29 @@ def get_url_data_content(url: str) -> bytes:
         return f.read()
 
 
-def get_file_data_from_node_id(node_id: str):
-    if node_id in cache:
-        return cache[node_id]
+def get_chunk_data(chunk: Chunk):
+    if result := cache.get(chunk.id):
+        return result
 
-    node = Node.objects.get(id=node_id)
+    chunk_data_dict: dict = json.loads(chunk.data)
+    url = chunk_data_dict.get("url") or TelegramConnector.get_file_url(
+        chunk_data_dict["telegram_file_id"]
+    )
+    chunk_data = get_url_data_content(url)
+    cache[chunk.id] = chunk_data
 
-    temp_dir_path = os.path.join(settings.BASE_DIR, "tmp", uuid.uuid4().__str__())
-    os.makedirs(temp_dir_path, exist_ok=True)
+    return chunk_data
 
-    data_chunks = [None] * node.chunks.count()
 
-    def get_chunk_data(chunk: Chunk):
-        chunk_data_dict = json.loads(chunk.data)
-        url = chunk_data_dict.get("url") or TelegramConnector.get_file_url(
-            chunk_data_dict["telegram_file_id"]
-        )
-        chunk_data = get_url_data_content(url)
-        data_chunks[chunk.index] = chunk_data
-
+def get_file_data_in_chunks_from_node(node: Node):
     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
         futures: List[concurrent.futures.Future] = []
-        for chunk in node.chunks.all():
+        for chunk in node.chunks.all().order_by("index"):
             future = executor.submit(get_chunk_data, chunk)
             futures.append(future)
 
         for future in futures:
-            future.result()
-
-    data = b"".join(data_chunks)
-    result_file_path = os.path.join(temp_dir_path, "result")
-
-    with open(result_file_path, "wb") as file:
-        file.write(data)
-
-    mime_type, _ = mimetypes.guess_type(result_file_path) or "application/octet-stream"
-    shutil.rmtree(temp_dir_path)
-    result = [data, mime_type, node.name]
-    cache[node_id] = result
-
-    return result
+            yield future.result()
 
 
 class NodesView(views.APIView):
@@ -235,19 +218,14 @@ class NodesDownloadView(views.APIView):
     serializer_class = None
 
     def get(self, _, node_id: str):
-        result = get_file_data_from_node_id(node_id)
+        node = Node.objects.get(id=node_id)
 
-        data, mime_type, filename = result
-
-        response = HttpResponse(
-            data,
+        response = StreamingHttpResponse(
+            get_file_data_in_chunks_from_node(node),
         )
 
-        response["Content-Disposition"] = (
-            f'{"inline" if mime_type in browser_mime_types else "attachment"}; filename="{filename}"'
-        )
-
-        response["Content-Type"] = mime_type or "application/octet-stream"
-        response["Content-Length"] = len(data)
+        response["Content-Disposition"] = f'attachment; filename="{node.name}"'
+        response["Content-Type"] = "application/octet-stream"
+        response["Content-Length"] = node.size
 
         return response
