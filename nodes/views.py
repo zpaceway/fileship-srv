@@ -74,8 +74,10 @@ def get_chunk_data(chunk: Chunk):
 
 
 def get_file_data_in_chunks_from_node(node: Node):
-    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
-        futures: List[concurrent.futures.Future] = []
+    yield b""
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures: List[concurrent.futures.Future[bytes]] = []
         for chunk in node.chunks.all().order_by("index"):
             future = executor.submit(get_chunk_data, chunk)
             futures.append(future)
