@@ -226,8 +226,10 @@ class NodesDownloadView(views.APIView):
             get_file_data_in_chunks_from_node(node),
         )
 
-        response["Content-Disposition"] = f'attachment; filename="{node.name}"'
-        response["Content-Type"] = "application/octet-stream"
+        response["Content-Disposition"] = f'inline; filename="{node.name}"'
+        response["Content-Type"] = (
+            mimetypes.guess_type(node.name) or "application/octet-stream"
+        )
         response["Content-Length"] = node.size
 
         return response
