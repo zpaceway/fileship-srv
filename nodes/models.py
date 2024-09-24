@@ -9,6 +9,7 @@ from django.db.models.manager import BaseManager
 
 cached_trees = {}
 
+
 class Node(models.Model):
     chunks: BaseManager["Chunk"]
     children: BaseManager["Node"]
@@ -47,7 +48,8 @@ class Node(models.Model):
                 has_empty_chunks=models.Exists(
                     Chunk.objects.filter(node=models.OuterRef("pk"), data__isnull=True)
                 )
-            ).filter(has_empty_chunks=True)
+            )
+            .filter(has_empty_chunks=True)
             .exists()
         )
 
@@ -85,32 +87,32 @@ class Node(models.Model):
     def tree(node_id=None, order_by: Optional[List[Literal["name"]]] = None):
         if order_by is None:
             order_by = ["name"]
-        
-        cache_key = f"{node_id}__{",".join(order_by)}"
-        
+
+        cache_key = f"{node_id}__{','.join(order_by)}"
+
         if cached_trees.get(cache_key):
             cached_result = cached_trees[cache_key]
             del cached_trees[cache_key]
             return cached_result
-        
+
         children = [
             node.representation(order_by=order_by)
             for node in Node.objects.filter(parent=node_id)
             .prefetch_related("chunks")
             .order_by(*order_by)
         ]
-        
+
         if node_id:
-            pathname= Node.objects.get(id=node_id).get_fullname()
+            pathname = Node.objects.get(id=node_id).get_fullname()
             pathname += "/"
         else:
             pathname = "/"
-        
+
         cached_trees[cache_key] = {
             "pathname": pathname,
             "children": children,
         }
-        
+
         return cached_trees[cache_key]
 
     def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
@@ -156,9 +158,18 @@ class Chunk(models.Model):
         ]
 
     def representation(self):
+        connector = (
+            None
+            if not self.data
+            else (
+                "telegram"
+                if "telegram" in self.data
+                else "discord" if "https://" in self.data else "local"
+            )
+        )
         return {
             "id": self.id,
-            "data": self.data is not None,
+            "connector": connector,
         }
 
     def get_name(self) -> str:
