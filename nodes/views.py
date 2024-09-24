@@ -19,28 +19,36 @@ import mimetypes
 from cachetools import TTLCache
 
 
-browser_mime_types = [
-    "text/html",
-    "text/plain",
-    "text/css",
-    "text/javascript",
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "image/svg+xml",
-    "application/javascript",
-    "application/json",
-    "application/pdf",
-    "audio/mpeg",
-    "audio/wav",
-    "audio/ogg",
-    "video/mp4",
-    "video/webm",
-    "video/ogg",
-    "application/xml",
-    "application/xhtml+xml",
-]
+browser_mime_types = set(
+    [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+        # Videos
+        "video/mp4",
+        "video/webm",
+        "video/ogg",
+        # Audio
+        "audio/mpeg",
+        "audio/ogg",
+        "audio/wav",
+        "audio/webm",
+        # PDFs
+        "application/pdf",
+        # Text
+        "text/html",
+        "text/css",
+        "text/plain",
+        "text/javascript",
+        # XML and JSON
+        "application/xml",
+        "application/json",
+        "application/xhtml+xml",
+    ]
+)
+
 
 MAX_CACHE_SIZE = 5 * 1024 * 1024 * 1024
 TTL = 6 * 60 * 60
@@ -219,17 +227,19 @@ class NodesDownloadView(views.APIView):
 
     serializer_class = None
 
-    def get(self, _, node_id: str):
+    def get(self, request: HttpRequest, node_id: str):
+        preview = request.GET.get("preview") in set(["1", "true", "True"])
         node = Node.objects.get(id=node_id)
 
         response = StreamingHttpResponse(
             get_file_data_in_chunks_from_node(node),
         )
 
-        response["Content-Disposition"] = f'inline; filename="{node.name}"'
-        response["Content-Type"] = (
-            mimetypes.guess_type(node.name) or "application/octet-stream"
+        content_type = mimetypes.guess_type(node.name)[0] or "application/octet-stream"
+        response["Content-Disposition"] = (
+            f'{"inline" if content_type in browser_mime_types and preview else "attachment"}; filename="{node.name}"'
         )
+        response["Content-Type"] = content_type
         response["Content-Length"] = node.size
 
         return response
