@@ -7,6 +7,7 @@ import uuid
 import concurrent.futures
 from django.conf import settings
 from django.http.request import HttpRequest
+from fileship.http import submission
 from nodes.connectors import TelegramConnector
 from nodes.forms import ChunkForm, NodeForm
 from nodes.models import Chunk, Node
@@ -92,25 +93,32 @@ def get_file_data_in_chunks_from_node(node: Node):
 
 
 class NodesView(views.View):
-    serializer_class = None
-
-    def get(self, _, node_id=None):
+    def get(self, request: HttpRequest, node_id=None):
+        unique_key = request.headers.get("x-unique-key")
         return JsonResponse(
             {
-                "result": Node.tree(node_id=node_id, order_by=["name"]),
+                "result": Node.tree(
+                    unique_key,
+                    node_id=node_id,
+                    order_by=["name"],
+                ),
             }
         )
 
     def post(self, request: HttpRequest, *args):
         chunks: int = int(request.POST.get("chunks"))
+        id = request.POST.get("id")
         name = request.POST.get("name")
         parent_id = request.POST.get("parent")
+        size = int(request.POST.get("size"))
+        unique_key = request.headers.get("x-unique-key")
 
         node = None
         try:
             node = Node.objects.get(
                 name=name,
                 parent_id=parent_id,
+                unique_key=unique_key,
             )
             return JsonResponse(
                 {
@@ -120,7 +128,15 @@ class NodesView(views.View):
         except Node.DoesNotExist:
             pass
 
-        node_form = NodeForm(data=request.POST, files=request.FILES)
+        new_node_data = {
+            "id": id,
+            "name": name,
+            "parent_id": parent_id,
+            "unique_key": unique_key,
+            "size": size,
+        }
+
+        node_form = NodeForm(data=new_node_data)
         instance: Node = node_form.save(commit=False)
         instance.save()
 
@@ -140,9 +156,12 @@ class NodesView(views.View):
             }
         )
 
-    def patch(self, request, node_id):
-        node = Node.objects.get(id=node_id)
-        node.name = request.POST.get("name")
+    def patch(self, request: HttpRequest, node_id):
+        unique_key = request.headers.get("x-unique-key")
+        raw = submission(request)
+        node = Node.objects.get(id=node_id, unique_key=unique_key)
+        node.name = raw.get("name")
+
         node.save()
 
         return JsonResponse(
@@ -151,8 +170,9 @@ class NodesView(views.View):
             }
         )
 
-    def delete(self, request, node_id):
-        node = Node.objects.get(id=node_id)
+    def delete(self, request: HttpRequest, node_id):
+        unique_key = request.headers.get("x-unique-key")
+        node = Node.objects.get(id=node_id, unique_key=unique_key)
         node.delete()
 
         return JsonResponse(

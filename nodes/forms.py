@@ -23,10 +23,6 @@ AVAILABLE_CONNECTORS = {
 
 
 class NodeForm(forms.ModelForm):
-    id = forms.CharField(
-        initial=lambda: uuid.uuid4().hex[0:8],
-    )
-    name = forms.CharField(required=False)
 
     class Meta:
         model = Node
@@ -35,6 +31,7 @@ class NodeForm(forms.ModelForm):
             "name",
             "parent",
             "size",
+            "unique_key",
         ]
 
 

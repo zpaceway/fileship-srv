@@ -24,6 +24,7 @@ class Node(models.Model):
     )
     name = models.CharField(max_length=256)
     size = models.BigIntegerField()
+    unique_key = models.CharField(max_length=128)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -84,7 +85,11 @@ class Node(models.Model):
         return base_node
 
     @staticmethod
-    def tree(node_id=None, order_by: Optional[List[Literal["name"]]] = None):
+    def tree(
+        unique_key: str,
+        node_id=None,
+        order_by: Optional[List[Literal["name"]]] = None,
+    ):
         if order_by is None:
             order_by = ["name"]
 
@@ -97,7 +102,10 @@ class Node(models.Model):
 
         children = [
             node.representation(order_by=order_by)
-            for node in Node.objects.filter(parent=node_id)
+            for node in Node.objects.filter(
+                parent=node_id,
+                unique_key=unique_key,
+            )
             .prefetch_related("chunks")
             .order_by(*order_by)
         ]
