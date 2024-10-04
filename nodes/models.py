@@ -93,7 +93,7 @@ class Node(models.Model):
         if order_by is None:
             order_by = ["name"]
 
-        cache_key = f"{node_id}__{','.join(order_by)}"
+        cache_key = f"{node_id}__{unique_key}__{','.join(order_by)}"
 
         if cached_trees.get(cache_key):
             cached_result = cached_trees[cache_key]

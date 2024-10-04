@@ -11,6 +11,8 @@ import uuid
 from django.conf import settings
 import shutil
 
+from nodes.utils import generate_random_uuid
+
 
 class AbstractConnector(abc.ABC):
 
@@ -34,7 +36,7 @@ class TelegramConnector(AbstractConnector):
     def upload(
         cls, uploaded_file: InMemoryUploadedFile
     ) -> List[Dict[Union[Literal["name"], Literal["url"]], str]]:
-        chunk_name = uuid.uuid4().hex[0:8]
+        chunk_name = generate_random_uuid()
         url = f"https://api.telegram.org/bot{cls.TELEGRAM_BOT_TOKEN}/sendDocument"
         files = {"document": (chunk_name, uploaded_file.read())}
         data = {"chat_id": cls.TELEGRAM_ADMIN_CHAT_ID}
@@ -90,7 +92,7 @@ class LocalConnector(AbstractConnector):
 
     @classmethod
     def upload(cls, uploaded_file: InMemoryUploadedFile):
-        chunk_name = uuid.uuid4().hex[0:8]
+        chunk_name = generate_random_uuid()
         file_path = os.path.join(settings.BASE_DIR, "media", chunk_name)
         with open(file_path, "wb") as f:
             f.write(uploaded_file.read())
@@ -105,7 +107,7 @@ class DiscordConnector(AbstractConnector):
 
     @classmethod
     def upload(cls, uploaded_file: InMemoryUploadedFile):
-        chunk_name = uuid.uuid4().hex[0:8]
+        chunk_name = generate_random_uuid()
         api_url = f"https://discord.com/api/v10/channels/{os.getenv('DISCORD_CHANNEL_ID')}/messages"
         headers = {"Authorization": f"Bot {os.getenv('DISCORD_BOT_TOKEN')}"}
         files = {"file": (chunk_name, uploaded_file.read())}

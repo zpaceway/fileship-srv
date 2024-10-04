@@ -16,6 +16,8 @@ from core.utils import auto_retry
 import mimetypes
 from cachetools import TTLCache
 
+from nodes.utils import generate_random_uuid
+
 
 browser_mime_types = set(
     [
@@ -128,10 +130,13 @@ class NodesView(views.View):
         except Node.DoesNotExist:
             pass
 
+        if len(id) < 64:
+            raise ValueError("NodeId must have at least 64 characters")
+
         new_node_data = {
             "id": id,
             "name": name,
-            "parent_id": parent_id,
+            "parent": parent_id,
             "unique_key": unique_key,
             "size": size,
         }
@@ -141,7 +146,7 @@ class NodesView(views.View):
         instance.save()
 
         for index in range(chunks):
-            chunk_id = uuid.uuid4().hex[0:8]
+            chunk_id = generate_random_uuid()
             Chunk.objects.get_or_create(
                 index=index,
                 node=instance,
