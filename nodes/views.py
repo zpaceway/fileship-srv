@@ -1,5 +1,5 @@
 from typing import List
-from django.http import HttpResponse
+from django import views
 import requests
 import json
 import os
@@ -10,10 +10,7 @@ from django.http.request import HttpRequest
 from nodes.connectors import TelegramConnector
 from nodes.forms import ChunkForm, NodeForm
 from nodes.models import Chunk, Node
-from rest_framework import views
-import rest_framework.permissions
 from django.http.response import JsonResponse, StreamingHttpResponse
-import shutil
 from core.utils import auto_retry
 import mimetypes
 from cachetools import TTLCache
@@ -94,12 +91,7 @@ def get_file_data_in_chunks_from_node(node: Node):
             yield future.result()
 
 
-class NodesView(views.APIView):
-    permission_classes = (rest_framework.permissions.AllowAny,)
-    authentication_classes = ()
-    # permission_classes = (rest_framework.permissions.IsAuthenticated,)
-    # authentication_classes = (JWTAuthentication,)
-
+class NodesView(views.View):
     serializer_class = None
 
     def get(self, _, node_id=None):
@@ -170,14 +162,7 @@ class NodesView(views.APIView):
         )
 
 
-class ChunksView(views.APIView):
-    permission_classes = (rest_framework.permissions.AllowAny,)
-    authentication_classes = ()
-    # permission_classes = (rest_framework.permissions.IsAuthenticated,)
-    # authentication_classes = (JWTAuthentication,)
-
-    serializer_class = None
-
+class ChunksView(views.View):
     def get(
         self,
         _,
@@ -221,12 +206,7 @@ class ChunksView(views.APIView):
         )
 
 
-class NodesDownloadView(views.APIView):
-    permission_classes = (rest_framework.permissions.AllowAny,)
-    authentication_classes = ()
-
-    serializer_class = None
-
+class NodesDownloadView(views.View):
     def get(self, request: HttpRequest, node_id: str):
         preview = request.GET.get("preview") in set(["1", "true", "True"])
         node = Node.objects.get(id=node_id)
