@@ -233,7 +233,6 @@ class ChunksView(views.View):
 
 class NodesDownloadView(views.View):
     def get(self, request: HttpRequest, node_id: str):
-        preview = request.GET.get("preview") in set(["1", "true", "True"])
         node = Node.objects.get(id=node_id)
 
         response = StreamingHttpResponse(
@@ -241,9 +240,11 @@ class NodesDownloadView(views.View):
         )
 
         content_type = mimetypes.guess_type(node.name)[0] or "application/octet-stream"
-        response["Content-Disposition"] = (
-            f'{"inline" if content_type in browser_mime_types and preview else "attachment"}; filename="{node.name}"'
+        inline_or_attachment = (
+            "inline" if content_type in browser_mime_types else "attachment"
         )
+        content_disposition = f'{inline_or_attachment}; filename="{node.name}"'
+        response["Content-Disposition"] = content_disposition
         response["Content-Type"] = content_type
         response["Content-Length"] = node.size
 
