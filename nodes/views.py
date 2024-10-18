@@ -13,7 +13,6 @@ from nodes.models import Chunk, Node
 from django.http.response import JsonResponse, StreamingHttpResponse
 from fileship.utils import auto_retry
 import mimetypes
-from cachetools import TTLCache
 
 from nodes.utils import generate_random_uuid
 
@@ -49,11 +48,6 @@ browser_mime_types = set(
 )
 
 
-MAX_CACHE_SIZE = 5 * 1024 * 1024 * 1024
-TTL = 6 * 60 * 60
-cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TTL)
-
-
 @auto_retry
 def get_url_data_content(url: str) -> bytes:
     if url.startswith("http://") or url.startswith("https://"):
@@ -67,15 +61,11 @@ def get_url_data_content(url: str) -> bytes:
 
 
 def get_chunk_data(chunk: Chunk):
-    if result := cache.get(chunk.id):
-        return result
-
     chunk_data_dict: dict = json.loads(chunk.data)
     url = chunk_data_dict.get("url") or TelegramConnector.get_file_url(
         chunk_data_dict["telegram_file_id"]
     )
     chunk_data = get_url_data_content(url)
-    cache[chunk.id] = chunk_data
 
     return chunk_data
 

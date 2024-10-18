@@ -7,9 +7,6 @@ from django.conf import settings
 from django.db.models.manager import BaseManager
 
 
-cached_trees = {}
-
-
 class Node(models.Model):
     chunks: BaseManager["Chunk"]
     children: BaseManager["Node"]
@@ -93,13 +90,6 @@ class Node(models.Model):
         if order_by is None:
             order_by = ["name"]
 
-        cache_key = f"{node_id}__{unique_key}__{','.join(order_by)}"
-
-        if cached_trees.get(cache_key):
-            cached_result = cached_trees[cache_key]
-            del cached_trees[cache_key]
-            return cached_result
-
         children = [
             node.representation(order_by=order_by)
             for node in Node.objects.filter(
@@ -116,12 +106,10 @@ class Node(models.Model):
         else:
             pathname = "/"
 
-        cached_trees[cache_key] = {
+        return {
             "pathname": pathname,
             "children": children,
         }
-
-        return cached_trees[cache_key]
 
     def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
         path_chunks: List[str] = [self.name if property == "name" else self.id]

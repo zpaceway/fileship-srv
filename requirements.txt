@@ -5,4 +5,3 @@ markdown
 django-filter
 django-cors-headers
 uwsgi
-cachetools
