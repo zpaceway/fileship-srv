@@ -85,11 +85,11 @@ def get_file_data_in_chunks_from_node(node: Node):
 
 class NodesView(views.View):
     def get(self, request: HttpRequest, node_id=None):
-        unique_key = request.headers.get("x-unique-key")
+        bucket_key = request.headers.get("x-bucket-key")
         return JsonResponse(
             {
                 "result": Node.tree(
-                    unique_key,
+                    bucket_key,
                     parent_node_id=node_id,
                     order_by=["name"],
                 ),
@@ -102,14 +102,14 @@ class NodesView(views.View):
         name = request.POST.get("name")
         parent_id = request.POST.get("parent")
         size = int(request.POST.get("size"))
-        unique_key = request.headers.get("x-unique-key")
+        bucket_key = request.headers.get("x-bucket-key")
 
         node = None
         try:
             node = Node.objects.get(
                 name=name,
                 parent_id=parent_id,
-                unique_key=unique_key,
+                bucket_key=bucket_key,
             )
             return JsonResponse(
                 {
@@ -126,7 +126,7 @@ class NodesView(views.View):
             "id": id,
             "name": name,
             "parent": parent_id,
-            "unique_key": unique_key,
+            "bucket_key": bucket_key,
             "size": size,
         }
 
@@ -151,9 +151,9 @@ class NodesView(views.View):
         )
 
     def patch(self, request: HttpRequest, node_id):
-        unique_key = request.headers.get("x-unique-key")
+        bucket_key = request.headers.get("x-bucket-key")
         raw = submission(request)
-        node = Node.objects.get(id=node_id, unique_key=unique_key)
+        node = Node.objects.get(id=node_id, bucket_key=bucket_key)
         node.name = raw.get("name")
 
         node.save()
@@ -165,8 +165,8 @@ class NodesView(views.View):
         )
 
     def delete(self, request: HttpRequest, node_id):
-        unique_key = request.headers.get("x-unique-key")
-        node = Node.objects.get(id=node_id, unique_key=unique_key)
+        bucket_key = request.headers.get("x-bucket-key")
+        node = Node.objects.get(id=node_id, bucket_key=bucket_key)
         node.delete()
 
         return JsonResponse(

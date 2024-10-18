@@ -31,7 +31,7 @@ class NodeForm(forms.ModelForm):
             "name",
             "parent",
             "size",
-            "unique_key",
+            "bucket_key",
         ]
 
 

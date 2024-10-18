@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
             "nodes",
             "0001_initial_squashed_0002_alter_chunk_unique_together_chunk_unique_node_chunk",
         ),
-        ("nodes", "0003_node_unique_key"),
+        ("nodes", "0003_node_bucket_key"),
     ]
 
     initial = True
@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
                         to="nodes.node",
                     ),
                 ),
-                ("unique_key", models.CharField(max_length=128)),
+                ("bucket_key", models.CharField(max_length=128)),
             ],
         ),
         migrations.CreateModel(

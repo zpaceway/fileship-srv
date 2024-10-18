@@ -37,7 +37,7 @@ ALLOWED_HOSTS = [
 
 CORS_ALLOW_HEADERS = (
     *default_headers,
-    "x-unique-key",
+    "x-bucket-key",
 )
 
 
