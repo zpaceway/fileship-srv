@@ -1,15 +1,11 @@
-import concurrent.futures
 import abc
 import os
 from typing import Dict, List, Literal, Union
 import requests
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.conf import settings
-from core.utils import auto_retry
-import shlex
-import uuid
+from fileship.utils import auto_retry
 from django.conf import settings
-import shutil
 
 from nodes.utils import generate_random_uuid
 

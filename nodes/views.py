@@ -3,7 +3,6 @@ from django import views
 import requests
 import json
 import os
-import uuid
 import concurrent.futures
 from django.conf import settings
 from django.http.request import HttpRequest
@@ -12,7 +11,7 @@ from nodes.connectors import TelegramConnector
 from nodes.forms import ChunkForm, NodeForm
 from nodes.models import Chunk, Node
 from django.http.response import JsonResponse, StreamingHttpResponse
-from core.utils import auto_retry
+from fileship.utils import auto_retry
 import mimetypes
 from cachetools import TTLCache
 
