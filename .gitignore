@@ -76,3 +76,4 @@ secrets.json
 .idea/
 .idea/*
 .idea/*/*
+/static
