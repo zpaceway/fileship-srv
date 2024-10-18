@@ -90,7 +90,7 @@ class NodesView(views.View):
             {
                 "result": Node.tree(
                     unique_key,
-                    node_id=node_id,
+                    parent_node_id=node_id,
                     order_by=["name"],
                 ),
             }

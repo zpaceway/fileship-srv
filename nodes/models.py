@@ -1,5 +1,4 @@
 import os
-import json
 from typing import List, Literal, Optional
 import shutil
 from django.db import models
@@ -37,54 +36,36 @@ class Node(models.Model):
 
         return self.size
 
-    def get_uploaded(self):
-        if self.chunks.exists():
-            return not self.chunks.filter(data__isnull=True).exists()
-
-        return (
-            not self.children.annotate(
-                has_empty_chunks=models.Exists(
-                    Chunk.objects.filter(node=models.OuterRef("pk"), data__isnull=True)
-                )
-            )
-            .filter(has_empty_chunks=True)
-            .exists()
-        )
-
     def representation(self, order_by: Optional[List[Literal["name"]]] = None):
         self.children: BaseManager[Node]
 
         if order_by is None:
             order_by = ["name"]
 
+        has_chunks = self.chunks.exists()
         base_node = {
             "id": self.id,
             "name": self.name,
             "size": self.get_size(),
             "chunks": [chunk.representation() for chunk in self.chunks.all()],
-            "url": None,
-            "children": None,
-            "uploaded": self.get_uploaded(),
+            "url": has_chunks and os.path.join("nodes", str(self.id), "download"),
+            "children": [],
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),
         }
 
-        if self.chunks.exists():
-            base_node["url"] = os.path.join("nodes", str(self.id), "download")
+        if has_chunks:
             del base_node["children"]
-
         else:
             del base_node["url"]
             del base_node["chunks"]
-
-            base_node["children"] = []
 
         return base_node
 
     @staticmethod
     def tree(
         unique_key: str,
-        node_id=None,
+        parent_node_id=None,
         order_by: Optional[List[Literal["name"]]] = None,
     ):
         if order_by is None:
@@ -93,25 +74,25 @@ class Node(models.Model):
         children = [
             node.representation(order_by=order_by)
             for node in Node.objects.filter(
-                parent=node_id,
+                parent=parent_node_id,
                 unique_key=unique_key,
             )
             .prefetch_related("chunks")
             .order_by(*order_by)
         ]
 
-        if node_id:
-            pathname = Node.objects.get(id=node_id).get_fullname()
-            pathname += "/"
-        else:
-            pathname = "/"
+        pathname = (
+            Node.objects.get(id=parent_node_id).get_filepath()
+            if parent_node_id
+            else "/"
+        )
 
         return {
             "pathname": pathname,
             "children": children,
         }
 
-    def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
+    def get_filepath(self, property: Literal["name", "id"] = "name") -> str:
         path_chunks: List[str] = [self.name if property == "name" else self.id]
         parent_node: Node = self.parent
 
@@ -123,10 +104,15 @@ class Node(models.Model):
 
         path_chunks.reverse()
 
-        return f'/{"/".join(path_chunks)}'
+        fullname = "/".join(path_chunks)
+
+        if not fullname:
+            fullname = "/"
+
+        return f"/{fullname}/"
 
     def __str__(self) -> str:
-        return self.get_fullname()
+        return self.get_filepath()
 
 
 class Chunk(models.Model):
@@ -171,8 +157,8 @@ class Chunk(models.Model):
     def get_name(self) -> str:
         return f"{self.node.name}:{self.index}"
 
-    def get_fullname(self, property: Literal["name", "id"] = "name") -> str:
-        return f"{self.node.get_fullname(property)}:{self.index}"
+    def get_filepath(self, property: Literal["name", "id"] = "name") -> str:
+        return f"{self.node.get_filepath(property)}:{self.index}"
 
     def delete(self, using=None, keep_parents=False):
         result = super().delete(using, keep_parents)
@@ -184,4 +170,4 @@ class Chunk(models.Model):
         return result
 
     def __str__(self) -> str:
-        return self.get_fullname()
+        return self.get_filepath()
