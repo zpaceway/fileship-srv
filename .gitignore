@@ -34,10 +34,12 @@ coverage.xml
 *.sqlite3
 
 # Uploads
-media/
+media/*
+!media/readme.html
 
 # Local environment
 .env
+*.env
 .venv/
 env/
 venv/
@@ -60,10 +62,6 @@ node_modules/
 # If you're using Django Compressor and have COMPRESS_OFFLINE = True
 static/CACHE/
 
-# If using Docker:
-docker-compose*.yml
-Dockerfile
-*.env
 
 # Ignore any secret keys or sensitive information
 secrets.json
