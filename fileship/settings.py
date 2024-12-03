@@ -25,15 +25,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-0f#q8f(2vz*pnc3n)-6vx0_)(s2+*!$t#u)y@i7^kro1-u+^g3"
+SECRET_KEY = os.getenv(
+    "SECRET_KEY", "django-insecure-0f#q8f(2vz*pnc3n)-6vx0_)(s2+*!$t#u)y@i7^kro1-u+^g3"
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "false") == "true"
 
 ALLOWED_HOSTS = [
     "localhost",
-    ".shiptunnel.zpaceway.com",
-    ".serveo.net",
+    "127.0.0.1",
+    "192.168.*.*",
 ]
 
 CORS_ALLOW_HEADERS = (
@@ -144,9 +146,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_DIR = BASE_DIR / "media"
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:9897",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:9897",
-    "https://fileship.vercel.app",
+    "http://localhost:*",
+    "http://127.0.0.1:*",
+    "http://192.168.*.*:*",
 ]
