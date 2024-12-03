@@ -35,7 +35,7 @@ DEBUG = os.getenv("DEBUG", "true") == "true"
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "192.168.*",
+    *["192.168.{}.{}".format(i, j) for i in range(256) for j in range(256)],
 ]
 
 CORS_ALLOW_HEADERS = (
@@ -148,5 +148,5 @@ MEDIA_DIR = BASE_DIR / "media"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:*",
     "http://127.0.0.1:*",
-    "http://192.168.0.201:9897",
+    "http://192.168.*.*:*",
 ]
