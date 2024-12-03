@@ -36,6 +36,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     *["192.168.{}.{}".format(i, j) for i in range(256) for j in range(256)],
+    ".zpaceway.local",
 ]
 
 CORS_ALLOW_HEADERS = (
@@ -150,4 +151,5 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://localhost:\d+$",
     r"^http://127\.0\.0\.1:\d+$",
     r"^http://192\.168\.\d+\.\d+:\d+$",
+    r"^https://.*\.zpaceway\.local$",
 ]
