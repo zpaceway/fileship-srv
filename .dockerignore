@@ -1,0 +1,77 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django specific files
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+
+# If using PostgreSQL or other database files
+*.pgsql
+
+# Caches
+*.pycache/
+*.cache/
+*.coverage
+*.tox
+nosetests.xml
+coverage.xml
+*.cover
+*.pyc
+*.pyo
+.pytest_cache/
+.tox/
+.express/
+.coverage
+
+# If using SQLite
+*.sqlite3
+
+# Uploads
+media/*
+!media/readme.html
+
+# Local environment
+.env
+*.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Django stuff:
+*.migrations/
+node_modules/
+*.bak
+
+# macOS files
+.DS_Store
+
+# Ignore editor-specific files
+.vscode/
+.idea/
+
+# If you're using Django Compressor and have COMPRESS_OFFLINE = True
+static/CACHE/
+
+
+# Ignore any secret keys or sensitive information
+secrets.json
+
+# Ignore .gitignore itself (in case of multiple projects)
+!.gitignore
+
+# PyCharm specific
+# This rule includes the .idea folder in the ignore list
+.idea/
+.idea/*
+.idea/*/*
+/static
