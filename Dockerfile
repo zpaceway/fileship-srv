@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE='1'
 ENV PYTHONUNBUFFERED='1'
-ENV GUNICORN_CMD_ARGS='--timeout 1200 --worker-connections 1000 --limit-request-line 0 --limit-request-field_size 0 --workers 4'
+ENV GUNICORN_CMD_ARGS='--timeout 1200 --worker-connections 1000 --limit-request-line 0 --limit-request-field_size 0 --workers 8'
 
 WORKDIR /app
 
