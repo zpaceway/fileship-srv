@@ -148,8 +148,8 @@ MEDIA_DIR = BASE_DIR / "media"
 
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^http://localhost:\d+$",
-    r"^http://127\.0\.0\.1:\d+$",
-    r"^http://192\.168\.\d+\.\d+:\d+$",
-    r"^https://.*\.zpaceway\.local$",
+    r"^https?://localhost:\d+$",
+    r"^https?://127\.0\.0\.1:\d+$",
+    r"^https?://192\.168\.\d+\.\d+:\d+$",
+    r"^https?://.*\.zpaceway\.local$",
 ]
