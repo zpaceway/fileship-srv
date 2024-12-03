@@ -1,8 +1,6 @@
+
+build:
+	docker build -t zpaceway/fileship-srv:latest .
+
 run:
-	python manage.py runserver 0.0.0.0:9898
-
-migrations:
-	python manage.py makemigrations
-
-migrate:
-	python manage.py migrate
+	docker run -d --restart always -p 9898:9898 --env-file .env --name fileship-srv -v ./db.sqlite3:/app/db.sqlite3 -v ./media/:/app/media/ zpaceway/fileship-srv:latest

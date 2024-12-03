@@ -4,4 +4,4 @@ requests
 markdown
 django-filter
 django-cors-headers
-uwsgi
+gunicorn
