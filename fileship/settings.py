@@ -35,7 +35,7 @@ DEBUG = os.getenv("DEBUG", "true") == "true"
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "192.168.*.*",
+    "192.168.0.201",
 ]
 
 CORS_ALLOW_HEADERS = (
