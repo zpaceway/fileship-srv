@@ -5,8 +5,8 @@ from django.conf.urls.static import static
 
 urlpatterns = (
     [
-        path(r"^api/admin/", admin.site.urls),
-        path(r"^api/nodes/", include("nodes.urls")),
+        path("api/admin/", admin.site.urls),
+        path("api/nodes/", include("nodes.urls")),
     ]
     + static(
         settings.MEDIA_URL,
