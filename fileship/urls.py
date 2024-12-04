@@ -4,6 +4,6 @@ from django.urls import path, include
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path("api/admin/", admin.site.urls),
-    path("api/nodes/", include("nodes.urls")),
+    path(r"^api/admin/", admin.site.urls),
+    path(r"^api/nodes/", include("nodes.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
