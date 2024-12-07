@@ -154,5 +154,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https?://127\.0\.0\.1:\d+$",
     r"^https?://192\.168\.\d+\.\d+:\d+$",
     r"^https?://.*\.zpaceway\.local$",
+    r"^https?://.*\.zpaceway\.local:\d+$",
     r"^https?://.*\.zpaceway\.com$",
+    r"^https?://.*\.zpaceway\.com:\d+$",
 ]
