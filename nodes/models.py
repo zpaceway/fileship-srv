@@ -1,6 +1,7 @@
 import os
 from typing import List, Literal, Optional
 import shutil
+import json
 from django.db import models
 from django.conf import settings
 from django.db.models.manager import BaseManager
@@ -23,6 +24,13 @@ class Node(models.Model):
     bucket_key = models.CharField(max_length=128)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["parent"]),
+            models.Index(fields=["bucket_key"]),
+            models.Index(fields=["name"]),
+        ]
 
     def get_size(self):
         if self.chunks.exists():
@@ -163,7 +171,8 @@ class Chunk(models.Model):
     def delete(self, using=None, keep_parents=False):
         result = super().delete(using, keep_parents)
 
-        url: str = self.data and self.data.get("url")
+        data = self.data and json.loads(self.data)
+        url: str = data and data.get("url")
         if url and not url.startswith("http://") and not url.startswith("https://"):
             shutil.rmtree(os.path.join(settings.BASE_DIR, url))
 
