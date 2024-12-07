@@ -16,3 +16,4 @@ RUN python manage.py collectstatic --noinput
 
 EXPOSE 9898
 CMD ["gunicorn", "--bind", "0.0.0.0:9898", "fileship.wsgi:application"]
+test
