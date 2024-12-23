@@ -5,4 +5,4 @@ django-cors-headers
 python-dotenv
 requests
 gunicorn
-sendgrid
+mailjet
