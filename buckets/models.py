@@ -114,7 +114,9 @@ class Node(models.Model):
             "size": self.get_size(),
             "chunks": chunks,
             "uploaded": (
-                len([chunk["connector"] for chunk in chunks]) / (len(chunks) or 1) * 100
+                len([chunk["connector"] for chunk in chunks if chunk["connector"]])
+                / (len(chunks) or 1)
+                * 100
             ),
             "url": (
                 has_chunks
