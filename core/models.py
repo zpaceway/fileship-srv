@@ -1,3 +1,6 @@
+import os
+import sendgrid
+from sendgrid.helpers.mail import Mail
 from django.db import models
 from django.contrib.auth.models import User
 from datetime import datetime
@@ -28,6 +31,14 @@ class FileshipUser(models.Model):
 
     def send_otp(self):
         self.otp = "".join([str(random.randint(0, 9)) for _ in range(6)])
+        sg = sendgrid.SendGridAPIClient(api_key=os.environ.get("SENDGRID_API_KEY"))
+        message = Mail(
+            from_email="from_email@example.com",
+            to_emails=self.user.email,
+            subject="Your OTP Code",
+            html_content=f"Your OTP code is {self.otp}",
+        )
+        sg.send(message)
         self.otp_at = datetime.now()
         self.save()
         pass
