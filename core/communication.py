@@ -1,15 +1,11 @@
 import os
-from mailjet_rest import Client
+import requests
 
 
 def send_email(to: str, body: str):
-    mailjet = Client(
-        auth=(
-            os.environ.get("MJ_APIKEY_PUBLIC"),
-            os.environ.get("MJ_APIKEY_PRIVATE"),
-        ),
-        version="v3.1",
-    )
+    mailjet_url = "https://api.mailjet.com/v3.1/send"
+
+    auth = (os.environ.get("MJ_APIKEY_PUBLIC"), os.environ.get("MJ_APIKEY_PRIVATE"))
 
     data = {
         "Messages": [
@@ -29,4 +25,4 @@ def send_email(to: str, body: str):
         ]
     }
 
-    mailjet.send.create(data=data)
+    requests.post(mailjet_url, auth=auth, json=data)
