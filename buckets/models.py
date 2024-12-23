@@ -39,7 +39,7 @@ class Bucket(models.Model):
             node.representation(order_by=order_by)
             for node in Node.objects.filter(
                 parent=parent_node_id,
-                bucket_id=self.bucket_id,
+                bucket_id=self.id,
             )
             .prefetch_related("chunks")
             .order_by(*order_by)
@@ -107,12 +107,25 @@ class Node(models.Model):
             order_by = ["name"]
 
         has_chunks = self.chunks.exists()
+        chunks = [chunk.representation() for chunk in self.chunks.all()]
         base_node = {
             "id": self.id,
             "name": self.name,
             "size": self.get_size(),
-            "chunks": [chunk.representation() for chunk in self.chunks.all()],
-            "url": has_chunks and os.path.join("nodes", str(self.id), "download"),
+            "chunks": chunks,
+            "uploaded": (
+                len([chunk["connector"] for chunk in chunks]) / (len(chunks) or 1) * 100
+            ),
+            "url": (
+                has_chunks
+                and os.path.join(
+                    "buckets",
+                    str(self.bucket.id),
+                    "nodes",
+                    str(self.id),
+                    "download",
+                )
+            ),
             "children": [],
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),

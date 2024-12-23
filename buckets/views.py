@@ -7,7 +7,6 @@ import concurrent.futures
 from django.conf import settings
 from rest_framework.request import Request
 from core.models import FileshipUser
-from fileship.http import submission
 from buckets.connectors import TelegramConnector
 from buckets.forms import BucketForm, ChunkForm, NodeForm
 from buckets.models import Bucket, Chunk, Node
@@ -211,7 +210,7 @@ class NodesView(views.APIView):
             "id": id,
             "name": name,
             "parent": parent_id,
-            "bucket_id": bucket_id,
+            "bucket": bucket_id,
             "size": size,
         }
 
@@ -241,9 +240,8 @@ class NodesView(views.APIView):
         bucket_id: str,
         node_id: str,
     ) -> Response:
-        raw = submission(request)
         node = Node.objects.get(id=node_id, bucket_id=bucket_id)
-        node.name = raw.get("name")
+        node.name = request.data["name"]
 
         node.save()
 
@@ -273,10 +271,12 @@ class ChunksView(views.APIView):
     def get(
         self,
         _,
+        bucket_id,
         node_id,
         chunk_index,
     ):
         chunk = Chunk.objects.get(
+            node__bucket_id=bucket_id,
             node_id=node_id,
             index=chunk_index,
         )
@@ -289,10 +289,12 @@ class ChunksView(views.APIView):
     def post(
         self,
         request: Request,
+        bucket_id,
         node_id,
         chunk_index,
     ):
         chunk = Chunk.objects.get(
+            node__bucket_id=bucket_id,
             node_id=node_id,
             index=chunk_index,
         )
@@ -314,8 +316,13 @@ class ChunksView(views.APIView):
 
 
 class NodesDownloadView(views.APIView):
-    def get(self, request: Request, node_id: str):
-        node = Node.objects.get(id=node_id)
+    def get(
+        self,
+        request: Request,
+        bucket_id: str,
+        node_id: str,
+    ):
+        node = Node.objects.get(bucket_id=bucket_id, id=node_id)
 
         response = StreamingHttpResponse(
             get_file_data_in_chunks_from_node(node),
