@@ -10,6 +10,7 @@ from core.models import FileshipUser
 from buckets.connectors import TelegramConnector
 from buckets.forms import BucketForm, ChunkForm, NodeForm
 from buckets.models import Bucket, Chunk, Node
+from rest_framework.permissions import AllowAny
 from rest_framework.views import Response
 from django.http.response import StreamingHttpResponse
 from fileship.utils import auto_retry
@@ -316,6 +317,8 @@ class ChunksView(views.APIView):
 
 
 class NodesDownloadView(views.APIView):
+    permission_classes = [AllowAny]
+
     def get(
         self,
         request: Request,

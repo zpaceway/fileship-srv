@@ -1,11 +1,10 @@
 from rest_framework import views
-from django.contrib.auth.models import User
 from rest_framework.request import Request
 from rest_framework.response import Response
 from core.models import FileshipUser
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
-
 from datetime import datetime, timedelta
+from rest_framework.permissions import AllowAny
 
 
 class UserView(views.APIView):
@@ -20,6 +19,8 @@ class UserView(views.APIView):
 
 
 class OTPRequestView(views.APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request: Request):
         data = request.data
         email = data.get("email")
@@ -34,6 +35,8 @@ class OTPRequestView(views.APIView):
 
 
 class OTPValidateView(views.APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request: Request):
         data = request.data
         email = data.get("email")
