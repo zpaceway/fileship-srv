@@ -1,8 +1,8 @@
 import uuid
 import json
 from django import forms
-from nodes import connectors
-from nodes.models import Chunk, Node
+from buckets import connectors
+from buckets.models import Bucket, Chunk, Node
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
 
@@ -22,8 +22,16 @@ AVAILABLE_CONNECTORS = {
 }
 
 
-class NodeForm(forms.ModelForm):
+class BucketForm(forms.ModelForm):
+    class Meta:
+        model = Bucket
+        fields = [
+            "id",
+            "name",
+        ]
 
+
+class NodeForm(forms.ModelForm):
     class Meta:
         model = Node
         fields = [
@@ -31,7 +39,7 @@ class NodeForm(forms.ModelForm):
             "name",
             "parent",
             "size",
-            "bucket_key",
+            "bucket",
         ]
 
 

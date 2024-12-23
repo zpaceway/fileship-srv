@@ -1,20 +1,22 @@
-from typing import List
-from django import views
+from typing import List, Optional
+from rest_framework import views
 import requests
 import json
 import os
 import concurrent.futures
 from django.conf import settings
-from django.http.request import HttpRequest
+from rest_framework.request import Request
+from core.models import FileshipUser
 from fileship.http import submission
-from nodes.connectors import TelegramConnector
-from nodes.forms import ChunkForm, NodeForm
-from nodes.models import Chunk, Node
-from django.http.response import JsonResponse, StreamingHttpResponse
+from buckets.connectors import TelegramConnector
+from buckets.forms import BucketForm, ChunkForm, NodeForm
+from buckets.models import Bucket, Chunk, Node
+from rest_framework.views import Response
+from django.http.response import StreamingHttpResponse
 from fileship.utils import auto_retry
 import mimetypes
 
-from nodes.utils import generate_random_uuid
+from buckets.utils import generate_random_uuid
 
 
 browser_mime_types = set(
@@ -83,35 +85,118 @@ def get_file_data_in_chunks_from_node(node: Node):
             yield future.result()
 
 
-class NodesView(views.View):
-    def get(self, request: HttpRequest, node_id=None):
-        bucket_key = request.headers.get("x-bucket-key")
-        return JsonResponse(
+class BucketView(views.APIView):
+    def get(self, request: Request):
+        return Response(
             {
-                "result": Node.tree(
-                    bucket_key,
+                "result": [
+                    bucket.representation()
+                    for bucket in Bucket.objects.filter(
+                        users__in=[request.user],
+                    )
+                ],
+            }
+        )
+
+    def post(self, request: Request):
+        name = request.data["name"]
+        bucket_form = BucketForm(
+            data={
+                "id": generate_random_uuid(),
+                "name": name,
+            }
+        )
+        bucket = bucket_form.save(commit=False)
+        bucket.save()
+        bucket.users.add(request.user)
+
+        return Response(
+            {
+                "result": bucket.representation(),
+            }
+        )
+
+    def delete(self, request: Request, bucket_id: str):
+        bucket = Bucket.objects.get(
+            id=bucket_id,
+            users__in=[request.user],
+        )
+        bucket.delete()
+
+        return Response(
+            {
+                "status": "success",
+            }
+        )
+
+    def patch(self, request: Request, bucket_id: str):
+        bucket = Bucket.objects.get(
+            id=bucket_id,
+            users__in=[request.user],
+        )
+        bucket.name = request.data["name"]
+        bucket.save()
+
+        return Response(
+            {
+                "status": "success",
+            }
+        )
+
+
+class BucketShareView(views.APIView):
+    def post(self, request: Request, bucket_id: str):
+        bucket = Bucket.objects.get(
+            id=bucket_id,
+            users__in=[request.user],
+        )
+        fuser = FileshipUser.get_from_email(request.data["email"])
+        bucket.users.add(fuser.user)
+
+        return Response(
+            {
+                "result": bucket.representation(),
+            }
+        )
+
+
+class NodesView(views.APIView):
+    def get(
+        self,
+        request: Request,
+        bucket_id,
+        node_id: Optional[str] = None,
+    ) -> Response:
+        bucket = Bucket.objects.get(id=bucket_id)
+        return Response(
+            {
+                "result": bucket.tree(
                     parent_node_id=node_id,
                     order_by=["name"],
                 ),
             }
         )
 
-    def post(self, request: HttpRequest, *args):
-        chunks: int = int(request.POST.get("chunks"))
+    def post(
+        self,
+        request: Request,
+        bucket_id: str,
+        *args,
+    ) -> Response:
+        chunks = int(request.POST.get("chunks"))
         id = request.POST.get("id")
         name = request.POST.get("name")
         parent_id = request.POST.get("parent")
         size = int(request.POST.get("size"))
-        bucket_key = request.headers.get("x-bucket-key")
 
         node = None
         try:
             node = Node.objects.get(
                 name=name,
                 parent_id=parent_id,
-                bucket_key=bucket_key,
+                bucket_id=bucket_id,
             )
-            return JsonResponse(
+            return Response(
                 {
                     "result": node.representation(),
                 }
@@ -126,7 +211,7 @@ class NodesView(views.View):
             "id": id,
             "name": name,
             "parent": parent_id,
-            "bucket_key": bucket_key,
+            "bucket_id": bucket_id,
             "size": size,
         }
 
@@ -144,39 +229,47 @@ class NodesView(views.View):
                 },
             )
 
-        return JsonResponse(
+        return Response(
             {
                 "result": instance.representation(),
             }
         )
 
-    def patch(self, request: HttpRequest, node_id):
-        bucket_key = request.headers.get("x-bucket-key")
+    def patch(
+        self,
+        request: Request,
+        bucket_id: str,
+        node_id: str,
+    ) -> Response:
         raw = submission(request)
-        node = Node.objects.get(id=node_id, bucket_key=bucket_key)
+        node = Node.objects.get(id=node_id, bucket_id=bucket_id)
         node.name = raw.get("name")
 
         node.save()
 
-        return JsonResponse(
+        return Response(
             {
                 "result": node.representation(),
             }
         )
 
-    def delete(self, request: HttpRequest, node_id):
-        bucket_key = request.headers.get("x-bucket-key")
-        node = Node.objects.get(id=node_id, bucket_key=bucket_key)
+    def delete(
+        self,
+        request: Request,
+        bucket_id: str,
+        node_id: str,
+    ) -> Response:
+        node = Node.objects.get(id=node_id, bucket_id=bucket_id)
         node.delete()
 
-        return JsonResponse(
+        return Response(
             {
                 "status": "success",
             }
         )
 
 
-class ChunksView(views.View):
+class ChunksView(views.APIView):
     def get(
         self,
         _,
@@ -187,7 +280,7 @@ class ChunksView(views.View):
             node_id=node_id,
             index=chunk_index,
         )
-        return JsonResponse(
+        return Response(
             {
                 "result": chunk.representation(),
             }
@@ -195,7 +288,7 @@ class ChunksView(views.View):
 
     def post(
         self,
-        request: HttpRequest,
+        request: Request,
         node_id,
         chunk_index,
     ):
@@ -213,15 +306,15 @@ class ChunksView(views.View):
         instance: Chunk = node_form.save(commit=False)
         instance.save()
 
-        return JsonResponse(
+        return Response(
             {
                 "result": instance.representation(),
             }
         )
 
 
-class NodesDownloadView(views.View):
-    def get(self, request: HttpRequest, node_id: str):
+class NodesDownloadView(views.APIView):
+    def get(self, request: Request, node_id: str):
         node = Node.objects.get(id=node_id)
 
         response = StreamingHttpResponse(

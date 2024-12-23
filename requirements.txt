@@ -1,6 +1,7 @@
 django
+djangorestframework
+djangorestframework-simplejwt
 django-cors-headers
-django-filter
 python-dotenv
 requests
 gunicorn

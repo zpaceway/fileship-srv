@@ -7,7 +7,7 @@ from django.conf import settings
 from fileship.utils import auto_retry
 from django.conf import settings
 
-from nodes.utils import generate_random_uuid
+from buckets.utils import generate_random_uuid
 
 
 class AbstractConnector(abc.ABC):

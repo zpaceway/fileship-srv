@@ -2,9 +2,59 @@ import os
 from typing import List, Literal, Optional
 import shutil
 import json
+from django.contrib.auth.models import User
 from django.db import models
 from django.conf import settings
 from django.db.models.manager import BaseManager
+
+
+class Bucket(models.Model):
+    id = models.TextField(primary_key=True)
+    name = models.CharField(max_length=256)
+    users = models.ManyToManyField("auth.User", related_name="buckets")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return self.name
+
+    def representation(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "users": [user.username for user in self.users.all()],
+            "createdAt": self.created_at.isoformat(),
+            "updatedAt": self.updated_at.isoformat(),
+        }
+
+    def tree(
+        self,
+        parent_node_id=None,
+        order_by: Optional[List[Literal["name"]]] = None,
+    ):
+        if order_by is None:
+            order_by = ["name"]
+
+        children = [
+            node.representation(order_by=order_by)
+            for node in Node.objects.filter(
+                parent=parent_node_id,
+                bucket_id=self.bucket_id,
+            )
+            .prefetch_related("chunks")
+            .order_by(*order_by)
+        ]
+
+        pathname = (
+            Node.objects.get(id=parent_node_id).get_filepath()
+            if parent_node_id
+            else "/"
+        )
+
+        return {
+            "pathname": pathname,
+            "children": children,
+        }
 
 
 class Node(models.Model):
@@ -13,7 +63,7 @@ class Node(models.Model):
 
     id = models.TextField(primary_key=True)
     parent = models.ForeignKey(
-        "nodes.Node",
+        "buckets.Node",
         related_name="children",
         null=True,
         blank=True,
@@ -21,15 +71,21 @@ class Node(models.Model):
     )
     name = models.CharField(max_length=256)
     size = models.BigIntegerField()
-    bucket_key = models.CharField(max_length=128)
+    bucket = models.ForeignKey(
+        "buckets.Bucket",
+        related_name="nodes",
+        on_delete=models.CASCADE,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        indexes = [
-            models.Index(fields=["parent"]),
-            models.Index(fields=["bucket_key"]),
-            models.Index(fields=["name"]),
+        unique_together = [
+            [
+                "parent",
+                "name",
+                "bucket",
+            ]
         ]
 
     def get_size(self):
@@ -70,36 +126,6 @@ class Node(models.Model):
 
         return base_node
 
-    @staticmethod
-    def tree(
-        bucket_key: str,
-        parent_node_id=None,
-        order_by: Optional[List[Literal["name"]]] = None,
-    ):
-        if order_by is None:
-            order_by = ["name"]
-
-        children = [
-            node.representation(order_by=order_by)
-            for node in Node.objects.filter(
-                parent=parent_node_id,
-                bucket_key=bucket_key,
-            )
-            .prefetch_related("chunks")
-            .order_by(*order_by)
-        ]
-
-        pathname = (
-            Node.objects.get(id=parent_node_id).get_filepath()
-            if parent_node_id
-            else "/"
-        )
-
-        return {
-            "pathname": pathname,
-            "children": children,
-        }
-
     def get_filepath(self, property: Literal["name", "id"] = "name") -> str:
         path_chunks: List[str] = [self.name if property == "name" else self.id]
         parent_node: Node = self.parent
@@ -126,7 +152,7 @@ class Node(models.Model):
 class Chunk(models.Model):
     id = models.TextField(primary_key=True)
     node: Node = models.ForeignKey(
-        "nodes.Node",
+        "buckets.Node",
         related_name="chunks",
         on_delete=models.CASCADE,
     )

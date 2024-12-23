@@ -1,6 +1,6 @@
 from django.contrib import admin
-from nodes.forms import ChunkForm, NodeForm
-from nodes.models import Chunk, Node
+from buckets.forms import ChunkForm, NodeForm
+from buckets.models import Chunk, Node
 
 
 class NodeAdmin(admin.ModelAdmin):
