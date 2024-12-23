@@ -33,7 +33,7 @@ class FileshipUser(models.Model):
         self.otp = "".join([str(random.randint(0, 9)) for _ in range(6)])
         sg = sendgrid.SendGridAPIClient(api_key=os.environ.get("SENDGRID_API_KEY"))
         message = Mail(
-            from_email="from_email@example.com",
+            from_email=os.environ.get("SENDGRID_EMAIL_SENDER"),
             to_emails=self.user.email,
             subject="Your OTP Code",
             html_content=f"Your OTP code is {self.otp}",
