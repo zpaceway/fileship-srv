@@ -88,6 +88,12 @@ class Node(models.Model):
             ]
         ]
 
+    def update_bucket(self, bucket_id: str) -> None:
+        self.bucket_id = bucket_id
+        for child in self.children.all():
+            child.update_bucket(bucket_id)
+        self.save()
+
     def get_size(self):
         if self.chunks.exists():
             return self.size

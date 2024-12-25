@@ -277,7 +277,7 @@ class NodesView(views.APIView):
             if new:
                 trash_bucket.users.add(self.request.user)
 
-        node.bucket = trash_bucket
+        node.update_bucket(trash_bucket.id)
         node.save()
 
         return Response(
