@@ -259,7 +259,26 @@ class NodesView(views.APIView):
         node_id: str,
     ) -> Response:
         node = Node.objects.get(id=node_id, bucket_id=bucket_id)
-        node.delete()
+        user_trash_bucket_id = f"{self.request.user.id}-trash-bucket"
+        if node.bucket.id == user_trash_bucket_id:
+            trash_bucket, _ = Bucket.objects.get_or_create(
+                id="global-trash-bucket",
+                defaults={
+                    "name": ".Trash",
+                },
+            )
+        else:
+            trash_bucket, new = Bucket.objects.get_or_create(
+                id=user_trash_bucket_id,
+                defaults={
+                    "name": ".Trash",
+                },
+            )
+            if new:
+                trash_bucket.users.add(self.request.user)
+
+        node.bucket = trash_bucket
+        node.save()
 
         return Response(
             {
