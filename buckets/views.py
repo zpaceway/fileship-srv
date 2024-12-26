@@ -93,7 +93,7 @@ class BucketView(views.APIView):
                     bucket.representation()
                     for bucket in Bucket.objects.filter(
                         users__in=[request.user],
-                    )
+                    ).order_by("name")
                 ],
             }
         )
