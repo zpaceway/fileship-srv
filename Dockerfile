@@ -1,8 +1,8 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE='1'
 ENV PYTHONUNBUFFERED='1'
-ENV GUNICORN_CMD_ARGS='--timeout 10800 --worker-connections 2048 --limit-request-line 0 --limit-request-field_size 0 --workers 16'
+ENV GUNICORN_CMD_ARGS='--timeout 10800 --worker-connections 512 --limit-request-line 0 --limit-request-field_size 0 --worker-class gthread --threads 16 fileship.wsgi:application'
 
 WORKDIR /app
 
