@@ -46,7 +46,7 @@ class FileshipUser(models.Model):
         self.save()
 
     def representation(self):
-        api_key, _ = Token.objects.get_or_create(user=self.user).key
+        token, _ = Token.objects.get_or_create(user=self.user)
         return {
             "id": self.id,
             "email": self.user.email,
@@ -54,7 +54,7 @@ class FileshipUser(models.Model):
             "lastName": self.user.last_name,
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
-            "apiKey": api_key,
+            "apiKey": token.key,
         }
 
     def __str__(self):
