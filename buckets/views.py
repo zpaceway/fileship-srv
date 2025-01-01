@@ -7,6 +7,8 @@ import concurrent.futures
 from django.conf import settings
 from rest_framework.request import Request
 from core.models import FileshipUser
+from django.core.files.uploadedfile import UploadedFile
+from django.core.files.base import ContentFile
 from buckets.connectors import TelegramConnector
 from buckets.forms import BucketForm, ChunkForm, NodeForm
 from buckets.models import Bucket, Chunk, Node
@@ -183,11 +185,14 @@ class NodesView(views.APIView):
         bucket_id: str,
         *args,
     ) -> Response:
-        chunks = int(request.POST.get("chunks"))
         id = request.POST.get("id")
         name = request.POST.get("name")
         parent_id = request.POST.get("parent")
-        size = int(request.POST.get("size"))
+        size = int(request.POST.get("size", "0"))
+        chunks = int(request.POST.get("chunks", "0"))
+
+        file = request.FILES.get("file")
+        connector = request.POST.get("connector")
 
         node = None
         try:
@@ -204,6 +209,22 @@ class NodesView(views.APIView):
         except Node.DoesNotExist:
             pass
 
+        chunk_data_files: List[ContentFile] = []
+        if file and connector:
+            file: UploadedFile = file
+            data = file.read()
+            chunk_size = 20 * 1024 * 1024
+
+            for part_index, data_offset in enumerate(range(0, len(data), chunk_size)):
+                chunk_data = data[data_offset : data_offset + chunk_size]
+                chunk_file = ContentFile(chunk_data)
+                chunk_file.name = f"{file.name}.part{part_index + 1}"
+                chunk_data_files.append(chunk_file)
+
+            id = id or generate_random_uuid()
+            size = file.size
+            chunks = len(chunk_data_files)
+
         if len(id) < 64:
             raise ValueError("NodeId must have at least 64 characters")
 
@@ -219,15 +240,40 @@ class NodesView(views.APIView):
         instance: Node = node_form.save(commit=False)
         instance.save()
 
-        for index in range(chunks):
+        def save_chunk(index: int) -> None:
             chunk_id = generate_random_uuid()
-            Chunk.objects.get_or_create(
+            chunk, _ = Chunk.objects.get_or_create(
                 index=index,
                 node=instance,
                 defaults={
                     "id": chunk_id,
                 },
             )
+            if chunk_data_files and chunk.data is None:
+                chunk_data_file = chunk_data_files[index]
+                chunk_form = ChunkForm(
+                    data={
+                        "id": chunk_id,
+                        "node": instance.id,
+                        "index": index,
+                        "connector": connector,
+                    },
+                    files={
+                        "file": chunk_data_file,
+                    },
+                    instance=chunk,
+                )
+                chunk_form.save(commit=False).save()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures: List[concurrent.futures.Future[None]] = []
+
+            for index in range(chunks):
+                future = executor.submit(save_chunk, index)
+                futures.append(future)
+
+            for future in futures:
+                future.result()
 
         return Response(
             {
@@ -319,13 +365,13 @@ class ChunksView(views.APIView):
             index=chunk_index,
         )
 
-        node_form = ChunkForm(
+        chunk_form = ChunkForm(
             data=request.POST,
             files=request.FILES,
             instance=chunk,
         )
 
-        instance: Chunk = node_form.save(commit=False)
+        instance: Chunk = chunk_form.save(commit=False)
         instance.save()
 
         return Response(

@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from datetime import datetime
 import random
+from rest_framework.authtoken.models import Token
 from core.communication import send_email
 
 
@@ -21,6 +22,7 @@ class FileshipUser(models.Model):
             is_staff=False,
             is_superuser=False,
         )
+        Token.objects.get_or_create(user=user)
         fuser, _ = FileshipUser.objects.get_or_create(
             user=user,
         )
@@ -44,6 +46,7 @@ class FileshipUser(models.Model):
         self.save()
 
     def representation(self):
+        api_key = Token.objects.get(user=self.user).key
         return {
             "id": self.id,
             "email": self.user.email,
@@ -51,6 +54,7 @@ class FileshipUser(models.Model):
             "lastName": self.user.last_name,
             "createdAt": self.created_at,
             "updatedAt": self.updated_at,
+            "apiKey": api_key,
         }
 
     def __str__(self):
