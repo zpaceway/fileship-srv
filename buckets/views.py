@@ -185,14 +185,14 @@ class NodesView(views.APIView):
         bucket_id: str,
         *args,
     ) -> Response:
+        file = request.FILES.get("file")
+        connector = request.POST.get("connector")
+
         id = request.POST.get("id")
-        name = request.POST.get("name")
+        name = file.name if file else request.POST.get("name")
         parent_id = request.POST.get("parent")
         size = int(request.POST.get("size", "0"))
         chunks = int(request.POST.get("chunks", "0"))
-
-        file = request.FILES.get("file")
-        connector = request.POST.get("connector")
 
         node = None
         try:
