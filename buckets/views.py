@@ -169,15 +169,35 @@ class NodesView(views.APIView):
         bucket_id,
         node_id: Optional[str] = None,
     ) -> Response:
-        bucket = Bucket.objects.get(id=bucket_id)
-        return Response(
-            {
-                "result": bucket.tree(
-                    parent_node_id=node_id,
-                    order_by=["name"],
-                ),
-            }
-        )
+        try:
+            bucket = Bucket.objects.get(
+                id=bucket_id,
+                users__in=[request.user],
+            )
+        except Bucket.DoesNotExist:
+            return Response(
+                {
+                    "detail": "Bucket not found",
+                },
+                404,
+            )
+
+        try:
+            return Response(
+                {
+                    "result": bucket.tree(
+                        parent_node_id=node_id,
+                        order_by=["name"],
+                    ),
+                }
+            )
+        except Node.DoesNotExist:
+            return Response(
+                {
+                    "detail": "Node not found",
+                },
+                404,
+            )
 
     def post(
         self,
@@ -200,6 +220,7 @@ class NodesView(views.APIView):
                 name=name,
                 parent_id=parent_id,
                 bucket_id=bucket_id,
+                bucket__users__in=[request.user],
             )
             return Response(
                 {
@@ -287,7 +308,11 @@ class NodesView(views.APIView):
         bucket_id: str,
         node_id: str,
     ) -> Response:
-        node = Node.objects.get(id=node_id, bucket_id=bucket_id)
+        node = Node.objects.get(
+            id=node_id,
+            bucket_id=bucket_id,
+            bucket__users__in=[request.user],
+        )
         node.name = request.data["name"]
 
         node.save()
@@ -304,7 +329,11 @@ class NodesView(views.APIView):
         bucket_id: str,
         node_id: str,
     ) -> Response:
-        node = Node.objects.get(id=node_id, bucket_id=bucket_id)
+        node = Node.objects.get(
+            id=node_id,
+            bucket_id=bucket_id,
+            bucket__users__in=[request.user],
+        )
         user_trash_bucket_id = f"{self.request.user.id}-trash-bucket"
         if node.bucket.id == user_trash_bucket_id:
             trash_bucket, _ = Bucket.objects.get_or_create(
@@ -336,13 +365,14 @@ class NodesView(views.APIView):
 class ChunksView(views.APIView):
     def get(
         self,
-        _,
+        request,
         bucket_id,
         node_id,
         chunk_index,
     ):
         chunk = Chunk.objects.get(
             node__bucket_id=bucket_id,
+            node__bucket__users__in=[request.user],
             node_id=node_id,
             index=chunk_index,
         )
@@ -361,6 +391,7 @@ class ChunksView(views.APIView):
     ):
         chunk = Chunk.objects.get(
             node__bucket_id=bucket_id,
+            node__bucket__users__in=[request.user],
             node_id=node_id,
             index=chunk_index,
         )
@@ -390,7 +421,10 @@ class NodesDownloadView(views.APIView):
         bucket_id: str,
         node_id: str,
     ):
-        node = Node.objects.get(bucket_id=bucket_id, id=node_id)
+        node = Node.objects.get(
+            bucket_id=bucket_id,
+            id=node_id,
+        )
 
         response = StreamingHttpResponse(
             get_file_data_in_chunks_from_node(node),
