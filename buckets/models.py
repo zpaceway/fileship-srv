@@ -127,6 +127,7 @@ class Node(models.Model):
             "url": (
                 has_chunks
                 and os.path.join(
+                    "api",
                     "buckets",
                     str(self.bucket.id),
                     "nodes",
